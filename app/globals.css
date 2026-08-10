@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+/* ============================================================
+   SMALL Formation — thème « Brume »
+   Greige calme, monochrome, un accent jaune.
+   Contrastes vérifiés WCAG 2.1 AA (ratios en commentaire).
+   ============================================================ */
+
+@theme {
+  /* Textes — ratios vs blanc / fond #F5F4F0 */
+  --color-anthracite: #1e1f1c; /* 16.6 / 15.0 — titres */
+  --color-encre: #3f403a; /* 10.5 / 9.5 — texte fort, boutons */
+  --color-texte: #50514a; /* 8.0 / 7.3 — corps */
+  --color-texte-2: #68675c; /* 5.7 / 5.2 — texte secondaire (AA) */
+  --color-label: #6e6d62; /* 5.2 / 4.7 — kickers, labels (AA) */
+  --color-gris-moyen: #acacab; /* décoratif uniquement (jamais du texte) */
+
+  /* Fonds */
+  --color-fond: #f5f4f0;
+  --color-carte: #ffffff;
+  --color-creme: #fff7ef;
+  --color-beige: #f9eee4;
+
+  /* Jaune — l'accent unique de Brume */
+  --color-jaune-vif: #e4ef70; /* surlignage titres ; texte anthracite dessus : 13.3 */
+  --color-jaune-pale: #f1f8bc; /* fonds actifs (nav, tags) */
+  --color-jaune-doux: #dce97d; /* jauges, barres, soulignés */
+  --color-jaune-ligne: #c2d26a; /* bordures accent */
+  --color-jaune-texte: #3f4223; /* texte sur fonds jaunes : 8.7–9.4 */
+
+  /* Vieux rose — décoratif + tag doux */
+  --color-rose: #d3b7ab;
+  --color-rose-pale: #f2e4dd;
+  --color-rose-texte: #5c4a40; /* 6.7 sur rose-pale */
+
+  /* Sémantiques (AA) */
+  --color-ok: #256c43; /* 6.3 blanc, 5.5 sur ok-bg */
+  --color-ok-bg: #e9f2e6;
+  --color-ok-ligne: #c4dcc9;
+  --color-err: #9c3532; /* 7.1 blanc, 6.2 sur err-bg */
+  --color-err-bg: #fbedea;
+  --color-err-ligne: #ebcac5;
+  --color-attente: #6e4a38; /* 6.8 sur beige */
+
+  /* Bordures hairline */
+  --color-ligne: rgb(30 31 28 / 0.1);
+  --color-ligne-forte: rgb(30 31 28 / 0.22);
+
+  /* Typo */
+  --font-sans: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  --font-serif: var(--font-caslon), "Libre Caslon Text", Georgia, serif;
+
+  --radius-carte: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-fond);
+  color: var(--color-texte);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-jaune-vif);
+  color: var(--color-anthracite);
+}
+
+/* Accessibilité clavier : focus toujours visible */
+:focus-visible {
+  outline: 2px solid var(--color-anthracite);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  /* ---- Titres ---------------------------------------------- */
+  .titre-page {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-style: normal;
+    font-size: 32px;
+    line-height: 1.15;
+    color: var(--color-anthracite);
+    letter-spacing: 0.01em;
+  }
+  .titre-formation {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-style: normal;
+    line-height: 1.25;
+    color: var(--color-anthracite);
+  }
+  .titre-section {
+    font-family: var(--font-caslon-italic), "Libre Caslon Text", Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 19px;
+    color: var(--color-anthracite);
+  }
+  .kicker {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-label);
+  }
+  .hl {
+    background: linear-gradient(transparent 55%, var(--color-jaune-vif) 55%);
+  }
+
+  /* ---- Surfaces -------------------------------------------- */
+  .card {
+    background: var(--color-carte);
+    border: 1px solid var(--color-ligne);
+    border-radius: var(--radius-carte);
+  }
+  .card-hover {
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+  .card-hover:hover {
+    border-color: var(--color-ligne-forte);
+    box-shadow: 0 2px 10px rgb(30 31 28 / 0.05);
+  }
+
+  /* ---- Boutons ---------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 11px 20px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    font-family: var(--font-sans);
+  }
+  .btn-primary {
+    background: var(--color-encre);
+    color: #fbfaf7; /* 10.0 */
+  }
+  .btn-primary:hover {
+    background: var(--color-anthracite);
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--color-ligne-forte);
+    color: var(--color-encre);
+  }
+  .btn-ghost:hover {
+    background: var(--color-fond);
+  }
+  .btn-block {
+    width: 100%;
+  }
+  .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  /* ---- Tags & badges ---------------------------------------- */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 7px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .tag-oblig {
+    background: var(--color-jaune-pale);
+    color: var(--color-jaune-texte);
+    border: 1px solid var(--color-jaune-ligne);
+  }
+  .tag-reco {
+    background: var(--color-fond);
+    color: var(--color-texte-2);
+    border: 1px solid var(--color-ligne);
+    font-weight: 400;
+  }
+  .tag-neutre {
+    background: var(--color-fond);
+    color: var(--color-texte-2);
+    font-weight: 400;
+  }
+  .tag-inscrit {
+    background: var(--color-jaune-pale);
+    color: var(--color-jaune-texte);
+  }
+  .tag-attente {
+    background: var(--color-beige);
+    color: var(--color-attente);
+  }
+  .tag-complet {
+    background: transparent;
+    border: 1px solid var(--color-ligne);
+    color: var(--color-texte-2);
+    font-weight: 400;
+  }
+  .tag-ok {
+    background: var(--color-ok-bg);
+    color: var(--color-ok);
+    border: 1px solid var(--color-ok-ligne);
+  }
+  .tag-err {
+    background: var(--color-err-bg);
+    color: var(--color-err);
+    border: 1px solid var(--color-err-ligne);
+  }
+  .tag-rose {
+    background: var(--color-rose-pale);
+    color: var(--color-rose-texte);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    color: var(--color-texte-2);
+    border: 1px solid var(--color-ligne);
+    border-radius: 99px;
+    padding: 4px 11px;
+    background: var(--color-carte);
+    white-space: nowrap;
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-presentiel {
+    background: var(--color-encre);
+  }
+  .dot-distanciel {
+    background: var(--color-rose);
+  }
+  .dot-autonomie {
+    background: var(--color-jaune-doux);
+    outline: 1px solid var(--color-jaune-ligne);
+  }
+
+  /* ---- Filtres / chips --------------------------------------- */
+  .chip {
+    font-size: 12.5px;
+    padding: 6px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--color-ligne);
+    background: var(--color-carte);
+    color: var(--color-texte-2);
+    cursor: pointer;
+    transition: all 0.12s;
+    font-family: var(--font-sans);
+  }
+  .chip:hover {
+    color: var(--color-anthracite);
+    border-color: var(--color-ligne-forte);
+  }
+  .chip-on {
+    background: var(--color-jaune-vif);
+    border-color: var(--color-jaune-ligne);
+    color: var(--color-jaune-texte);
+    font-weight: 700;
+  }
+
+  /* ---- Formulaires ------------------------------------------- */
+  .field-label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-label);
+    margin-bottom: 7px;
+    font-weight: 700;
+  }
+  .field-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--color-ligne-forte);
+    border-radius: 10px;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    background: var(--color-carte);
+    color: var(--color-anthracite);
+  }
+  .field-input::placeholder {
+    color: var(--color-label);
+  }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--color-encre);
+    box-shadow: 0 0 0 3px var(--color-jaune-pale);
+  }
+
+  /* ---- Jauges ------------------------------------------------- */
+  .gauge {
+    height: 5px;
+    background: var(--color-fond);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .gauge-fill {
+    display: block;
+    height: 100%;
+    background: var(--color-jaune-doux);
+    border-radius: 99px;
+  }
+  .gauge-full .gauge-fill {
+    background: var(--color-gris-moyen);
+  }
+}

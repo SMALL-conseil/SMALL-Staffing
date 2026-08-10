@@ -1,0 +1,62 @@
+name: Deploy Preprod
+
+# Déclenchement : chaque push (ou merge) sur la branche "preprod"
+# -> build + déploiement automatique sur le domaine préprod de l'outil.
+# La PRODUCTION reste déclenchée par les tags v* (workflow deploy.yml).
+# Relance manuelle possible : onglet Actions -> Deploy Preprod -> Run workflow.
+on:
+  push:
+    branches: ["preprod"]
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/small-conseil/small-app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Résoudre le tag d'image (preprod-<sha court>)
+        id: meta
+        run: echo "tag=preprod-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/app/Dockerfile
+          push: true
+          # NB : on ne pousse JAMAIS le tag "latest" ici (réservé à la prod).
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:preprod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Déploiement SSH sur le VPS (préprod)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
+          envs: DEPLOY_TAG
+          script: |
+            cd /opt/small/deploy
+            bash scripts/remote-deploy-preprod-small-app.sh "$DEPLOY_TAG"

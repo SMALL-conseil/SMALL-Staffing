@@ -1,0 +1,50 @@
+# ============================================================
+#  Blocs de service à GREFFER dans le compose central du VPS
+#  (/opt/small/deploy/docker-compose.prod.yml) — cf. deploy/SETUP.md.
+#  Le VPS mutualisé fournit déjà : traefik (TLS Let's Encrypt),
+#  postgres 16 partagé, réseaux web/internal.
+#  Ne PAS lancer ce fichier tel quel : c'est un fragment.
+# ============================================================
+
+services:
+  small-app:
+    image: ${SMALL_APP_IMAGE}:${SMALL_APP_TAG:-latest}
+    restart: unless-stopped
+    env_file: [.env, small-app.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [web, internal]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.small-app.rule=Host(`${DOMAIN_SMALL_APP}`)
+      - traefik.http.routers.small-app.entrypoints=websecure
+      - traefik.http.routers.small-app.tls.certresolver=le
+      - traefik.http.services.small-app.loadbalancer.server.port=3000
+      - traefik.docker.network=small-apps_web
+
+  # PRÉPROD : même image, tag piloté par SMALL_APP_PREPROD_TAG, env surchargé,
+  # porte BasicAuth Traefik (couple PREPROD_BASICAUTH du .env central,
+  # format hash {SHA} OBLIGATOIRE — cf. SETUP.md).
+  small-app-preprod:
+    image: ${SMALL_APP_IMAGE}:${SMALL_APP_PREPROD_TAG:-preprod}
+    restart: unless-stopped
+    env_file: [.env, small-app.env, small-app.preprod.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [web, internal]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.small-app-preprod.rule=Host(`${DOMAIN_SMALL_APP_PREPROD}`)
+      - traefik.http.routers.small-app-preprod.entrypoints=websecure
+      - traefik.http.routers.small-app-preprod.tls.certresolver=le
+      - traefik.http.routers.small-app-preprod.middlewares=preprod-auth
+      - traefik.http.middlewares.preprod-auth.basicauth.users=${PREPROD_BASICAUTH}
+      - traefik.http.services.small-app-preprod.loadbalancer.server.port=3000
+      - traefik.docker.network=small-apps_web
+
+# Variables à AJOUTER au .env central du VPS :
+#   SMALL_APP_IMAGE=ghcr.io/small-conseil/small-app
+#   DOMAIN_SMALL_APP=small-app.small-conseil.com
+#   DOMAIN_SMALL_APP_PREPROD=small-app-preprod.small-conseil.com

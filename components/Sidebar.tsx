@@ -1,0 +1,92 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
+import { Home, Users, BarChart3, LogOut } from "lucide-react"
+import { roleLabels } from "@/lib/types"
+
+type NavItem = {
+  label: string
+  href: string
+  icon: React.ElementType
+}
+
+// Navigation par rôle — étendre ici quand l'outil gagne des pages.
+const navByRole: Record<string, NavItem[]> = {
+  MEMBER: [
+    { label: "Accueil", href: "/accueil", icon: Home },
+  ],
+  ADMIN: [
+    { label: "Accueil", href: "/accueil", icon: Home },
+    { label: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
+    { label: "Reporting", href: "/admin/reporting", icon: BarChart3 },
+  ],
+}
+
+interface SidebarProps {
+  user: { name?: string | null; email?: string | null; role: string }
+}
+
+export default function Sidebar({ user }: SidebarProps) {
+  const pathname = usePathname()
+  const navItems = navByRole[user.role] ?? navByRole.MEMBER
+
+  return (
+    <aside className="w-60 min-h-screen bg-carte border-r border-ligne flex flex-col shrink-0">
+      {/* Marque */}
+      <div className="px-6 pt-7 pb-5">
+        <div className="text-anthracite text-[22px] font-bold tracking-[0.18em]">SMALL</div>
+        <div className="text-label text-[10px] tracking-[0.32em] uppercase mt-1">
+          App
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-3.5 py-2" aria-label="Navigation principale">
+        <div className="text-label text-[10px] tracking-[0.2em] uppercase px-3.5 pt-3 pb-2">
+          Menu
+        </div>
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href)
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[9px] text-[13.5px] mb-0.5 transition-colors ${
+                isActive
+                  ? "bg-jaune-pale text-anthracite font-bold"
+                  : "text-texte-2 hover:text-anthracite hover:bg-fond"
+              }`}
+            >
+              <item.icon size={16} aria-hidden="true" />
+              <span className="flex-1">{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
+
+      {/* Utilisateur */}
+      <div className="m-3.5 px-3 py-3 border border-ligne rounded-xl flex items-center gap-2.5">
+        <div className="w-[33px] h-[33px] rounded-full bg-fond border border-ligne text-encre flex items-center justify-center font-bold text-[13px] shrink-0">
+          {user.name?.[0]?.toUpperCase() ?? "U"}
+        </div>
+        <div className="min-w-0">
+          <div className="text-anthracite text-[12.5px] font-bold truncate">{user.name}</div>
+          <div className="text-label text-[11px] mt-px truncate">
+            {roleLabels[user.role] ?? user.role}
+          </div>
+        </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          aria-label="Déconnexion"
+          title="Déconnexion"
+          className="ml-auto text-label hover:text-anthracite transition-colors shrink-0 p-1 rounded"
+        >
+          <LogOut size={15} aria-hidden="true" />
+        </button>
+      </div>
+    </aside>
+  )
+}

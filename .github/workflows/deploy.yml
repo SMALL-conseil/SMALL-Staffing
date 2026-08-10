@@ -1,0 +1,62 @@
+name: Deploy Prod
+
+# Déclenchement : à chaque tag de version (ex. v1.0.0) -> build + déploiement auto.
+# Déclenchement manuel possible (workflow_dispatch) en précisant le tag à déployer.
+# ⚠️ Le tag v* est un GESTE HUMAIN : jamais posé par un script ou par Claude.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag d'image à déployer (ex. v1.0.0)"
+        required: true
+
+env:
+  IMAGE: ghcr.io/small-conseil/small-app
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Résoudre le tag
+        id: meta
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/app/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - name: Déploiement SSH sur le VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
+          envs: DEPLOY_TAG
+          script: |
+            cd /opt/small/deploy
+            bash scripts/remote-deploy-small-app.sh "$DEPLOY_TAG"
