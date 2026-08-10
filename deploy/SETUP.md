@@ -4,7 +4,7 @@ Le VPS (/opt/small/deploy) fournit déjà : Traefik (TLS Let's Encrypt), Postgre
 partagé, réseaux `web`/`internal`, la porte BasicAuth préprod, les backups et le
 registre GHCR. Mettre en ligne cet outil = le **greffer** dessus. ~30 min, une fois.
 
-Prérequis : `scripts/rename-tool.ps1` déjà exécuté (le nom `small-app` remplacé
+Prérequis : `scripts/rename-tool.ps1` déjà exécuté (le nom `staffing` remplacé
 partout), le repo GitHub créé dans l'org avec son premier push.
 
 ## 1. DNS (IONOS — pas OVH)

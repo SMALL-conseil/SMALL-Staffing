@@ -14,7 +14,7 @@ export default async function AccueilPage() {
       <div className="mb-7">
         <div className="kicker">SMALL Big Change</div>
         <h1 className="titre-page mt-1.5">
-          Bienvenue sur <span className="hl">SMALL App</span>
+          Bienvenue sur <span className="hl">SMALL Staffing</span>
         </h1>
         <p className="text-[13px] text-texte-2 mt-2">
           Connecté en tant que {session.user.name} — {roleLabels[session.user.role] ?? session.user.role}

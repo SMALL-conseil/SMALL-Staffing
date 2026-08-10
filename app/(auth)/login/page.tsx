@@ -42,7 +42,7 @@ export default function LoginPage() {
       </div>
 
       <h1 className="titre-formation text-[23px] mt-6 mb-1">
-        Connexion à <span className="hl">SMALL App</span>
+        Connexion à <span className="hl">SMALL Staffing</span>
       </h1>
       <p className="text-[13px] text-texte-2 mb-6">
         Outil interne SMALL Big Change

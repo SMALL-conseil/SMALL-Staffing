@@ -7,44 +7,44 @@
 # ============================================================
 
 services:
-  small-app:
-    image: ${SMALL_APP_IMAGE}:${SMALL_APP_TAG:-latest}
+  staffing:
+    image: ${STAFFING_IMAGE}:${STAFFING_TAG:-latest}
     restart: unless-stopped
-    env_file: [.env, small-app.env]
+    env_file: [.env, staffing.env]
     depends_on:
       postgres:
         condition: service_healthy
     networks: [web, internal]
     labels:
       - traefik.enable=true
-      - traefik.http.routers.small-app.rule=Host(`${DOMAIN_SMALL_APP}`)
-      - traefik.http.routers.small-app.entrypoints=websecure
-      - traefik.http.routers.small-app.tls.certresolver=le
-      - traefik.http.services.small-app.loadbalancer.server.port=3000
-      - traefik.docker.network=small-apps_web
+      - traefik.http.routers.staffing.rule=Host(`${DOMAIN_STAFFING}`)
+      - traefik.http.routers.staffing.entrypoints=websecure
+      - traefik.http.routers.staffing.tls.certresolver=le
+      - traefik.http.services.staffing.loadbalancer.server.port=3000
+      - traefik.docker.network=staffings_web
 
-  # PRÉPROD : même image, tag piloté par SMALL_APP_PREPROD_TAG, env surchargé,
+  # PRÉPROD : même image, tag piloté par STAFFING_PREPROD_TAG, env surchargé,
   # porte BasicAuth Traefik (couple PREPROD_BASICAUTH du .env central,
   # format hash {SHA} OBLIGATOIRE — cf. SETUP.md).
-  small-app-preprod:
-    image: ${SMALL_APP_IMAGE}:${SMALL_APP_PREPROD_TAG:-preprod}
+  staffing-preprod:
+    image: ${STAFFING_IMAGE}:${STAFFING_PREPROD_TAG:-preprod}
     restart: unless-stopped
-    env_file: [.env, small-app.env, small-app.preprod.env]
+    env_file: [.env, staffing.env, staffing.preprod.env]
     depends_on:
       postgres:
         condition: service_healthy
     networks: [web, internal]
     labels:
       - traefik.enable=true
-      - traefik.http.routers.small-app-preprod.rule=Host(`${DOMAIN_SMALL_APP_PREPROD}`)
-      - traefik.http.routers.small-app-preprod.entrypoints=websecure
-      - traefik.http.routers.small-app-preprod.tls.certresolver=le
-      - traefik.http.routers.small-app-preprod.middlewares=preprod-auth
+      - traefik.http.routers.staffing-preprod.rule=Host(`${DOMAIN_STAFFING_PREPROD}`)
+      - traefik.http.routers.staffing-preprod.entrypoints=websecure
+      - traefik.http.routers.staffing-preprod.tls.certresolver=le
+      - traefik.http.routers.staffing-preprod.middlewares=preprod-auth
       - traefik.http.middlewares.preprod-auth.basicauth.users=${PREPROD_BASICAUTH}
-      - traefik.http.services.small-app-preprod.loadbalancer.server.port=3000
-      - traefik.docker.network=small-apps_web
+      - traefik.http.services.staffing-preprod.loadbalancer.server.port=3000
+      - traefik.docker.network=staffings_web
 
 # Variables à AJOUTER au .env central du VPS :
-#   SMALL_APP_IMAGE=ghcr.io/small-conseil/small-app
-#   DOMAIN_SMALL_APP=small-app.small-conseil.com
-#   DOMAIN_SMALL_APP_PREPROD=small-app-preprod.small-conseil.com
+#   STAFFING_IMAGE=ghcr.io/small-conseil/staffing
+#   DOMAIN_STAFFING=staffing.small-conseil.com
+#   DOMAIN_STAFFING_PREPROD=staffing-preprod.small-conseil.com

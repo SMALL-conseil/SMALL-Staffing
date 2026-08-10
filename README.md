@@ -1,4 +1,4 @@
-# small-app-template — gabarit des outils internes SMALL
+# staffing-template — gabarit des outils internes SMALL
 
 Socle standard du framework SMALL Big Change : Next.js 16 + Prisma/PostgreSQL +
 NextAuth (email/mdp + SSO Microsoft optionnel) + charte graphique Brume + chaîne de
@@ -11,7 +11,7 @@ VPS mutualisé Docker/Traefik). Créer un nouvel outil = **10 minutes de personn
 1. **GitHub → « Use this template »** → nouveau repo dans l'org `SMALL-conseil`
    (nom en kebab-case, ex. `veille-ia`).
 2. Cloner **hors OneDrive** : `git clone https://github.com/SMALL-conseil/<outil>.git C:\Dev\<outil>`
-3. **Personnaliser** (remplace `small-app` partout + renomme les fichiers porteurs) :
+3. **Personnaliser** (remplace `staffing` partout + renomme les fichiers porteurs) :
    ```powershell
    cd C:\Dev\<outil>
    .\scripts\rename-tool.ps1 -Name "<outil>" -DisplayName "<Nom affiché>"

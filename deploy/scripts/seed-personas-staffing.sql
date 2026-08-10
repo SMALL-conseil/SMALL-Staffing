@@ -1,7 +1,7 @@
 -- ============================================================
 --  Personas de recette PRÉPROD — idempotent, garde-fou anti-prod.
 --  Injection :  docker compose -f docker-compose.prod.yml exec -T postgres \
---    psql -U <user> -d small_app_preprod -f - < scripts/seed-personas-small-app.sql
+--    psql -U <user> -d staffing_preprod -f - < scripts/seed-personas-staffing.sql
 --  Mot de passe commun : Smallchange2024!  (hash bcrypt ci-dessous)
 -- ============================================================
 

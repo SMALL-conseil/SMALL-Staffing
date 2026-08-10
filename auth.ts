@@ -71,6 +71,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   trustHost: true,
+  cookies: { sessionToken: { name: "staffing.session-token" } },
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
 })

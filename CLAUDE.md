@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# SMALL App — gabarit standard des outils internes SMALL
+# SMALL Staffing — gabarit standard des outils internes SMALL
 
-Application créée depuis le template `small-app-template` (framework SMALL Big Change).
+Application créée depuis le template `staffing-template` (framework SMALL Big Change).
 Ce fichier documente l'invariant du framework : stack, conventions, charte, workflow de
 livraison, et les pièges déjà rencontrés sur les outils précédents. Compléter la section
 « Métier » au fil du développement de l'outil.
@@ -54,7 +54,7 @@ Adresse : 28 Place Saint Georges, 75009 Paris (jamais l'ancienne adresse Maleshe
 
 ```powershell
 npm ci ; npx prisma generate
-# créer la base : psql -U postgres -c "CREATE DATABASE small_app;"
+# créer la base : psql -U postgres -c "CREATE DATABASE staffing;"
 cp .env.example .env   # puis remplir DATABASE_URL
 npx prisma migrate deploy ; npx tsx prisma/seed.ts
 npm run dev            # http://localhost:3000
@@ -73,7 +73,7 @@ On ne pousse JAMAIS directement en production :
    **Le tag v\* est un geste humain — jamais posé par un script ni par Claude.**
 
 Livraison assistée par Claude : Claude développe dans son sandbox (build vérifié),
-dépose un bundle `small-app-*.bundle` dans le dossier `claude-bridge` du poste,
+dépose un bundle `staffing-*.bundle` dans le dossier `claude-bridge` du poste,
 double-clic sur `livrer.ps1` (fourni dans `claude-bridge/` de ce repo). GitHub fait
 foi ; le bundle est la valise de Claude, jamais un mécanisme de synchro.
 

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: ghcr.io/small-conseil/small-app
+  IMAGE: ghcr.io/small-conseil/staffing
 
 jobs:
   build:
@@ -59,4 +59,4 @@ jobs:
           envs: DEPLOY_TAG
           script: |
             cd /opt/small/deploy
-            bash scripts/remote-deploy-preprod-small-app.sh "$DEPLOY_TAG"
+            bash scripts/remote-deploy-preprod-staffing.sh "$DEPLOY_TAG"

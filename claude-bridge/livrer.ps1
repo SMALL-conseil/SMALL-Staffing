@@ -1,24 +1,24 @@
 # ============================================================
-# livrer.ps1 - Livraison small-app (bundle Claude -> GitHub)
+# livrer.ps1 - Livraison staffing (bundle Claude -> GitHub)
 # A poser dans le dossier claude-bridge du poste (ex. C:\Dev\claude-bridge).
 # Merge le bundle depose par Claude dans main + preprod, pousse,
 # la CI deploie la preprod. Ne cree JAMAIS de tag v* (prod = geste humain).
 # ============================================================
 
 $candidats = @(
-    "C:\Dev\small-app"
+    "C:\Dev\staffing"
 )
 $repo = $candidats | Where-Object { Test-Path (Join-Path $_ ".git") } | Select-Object -First 1
 if (-not $repo) {
-    Write-Host "Aucun clone du repo trouve sur ce poste (attendu : C:\Dev\small-app)." -ForegroundColor Red
+    Write-Host "Aucun clone du repo trouve sur ce poste (attendu : C:\Dev\staffing)." -ForegroundColor Red
     Read-Host "Entree pour fermer" ; exit 1
 }
 Write-Host "Repo : $repo" -ForegroundColor Cyan
 
-$bundle = Get-ChildItem -Path $PSScriptRoot -Filter "small-app-*.bundle" |
+$bundle = Get-ChildItem -Path $PSScriptRoot -Filter "staffing-*.bundle" |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $bundle) {
-    Write-Host "Aucun bundle small-app-*.bundle trouve dans $PSScriptRoot" -ForegroundColor Red
+    Write-Host "Aucun bundle staffing-*.bundle trouve dans $PSScriptRoot" -ForegroundColor Red
     Read-Host "Entree pour fermer" ; exit 1
 }
 Write-Host "Bundle : $($bundle.Name)" -ForegroundColor Cyan

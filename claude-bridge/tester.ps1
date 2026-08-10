@@ -1,5 +1,5 @@
 # ============================================================
-# tester.ps1 - Test A VIDE de la chaine de livraison de small-app
+# tester.ps1 - Test A VIDE de la chaine de livraison de staffing
 # Aucun commit sur main/preprod, aucune CI, aucun deploiement.
 # A poser dans le dossier claude-bridge du poste, a cote d'un bundle.
 # ============================================================
@@ -10,16 +10,16 @@ function Etape($nom, $ok) {
     else { Write-Host "[ECHEC] $nom" -ForegroundColor Red ; $script:ErrorCount++ }
 }
 
-$bundle = Get-ChildItem -Path $PSScriptRoot -Filter "small-app-*.bundle" |
+$bundle = Get-ChildItem -Path $PSScriptRoot -Filter "staffing-*.bundle" |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $bundle) {
-    Write-Host "Aucun bundle small-app-*.bundle dans $PSScriptRoot" -ForegroundColor Red
+    Write-Host "Aucun bundle staffing-*.bundle dans $PSScriptRoot" -ForegroundColor Red
     Read-Host "Entree pour fermer" ; exit 1
 }
 Write-Host "Bundle : $($bundle.Name)" -ForegroundColor Cyan
 
 $tmp = Join-Path $env:TEMP ("claude-test-livraison-" + (Get-Date -Format "HHmmss"))
-git clone --quiet https://github.com/SMALL-conseil/small-app.git $tmp
+git clone --quiet https://github.com/SMALL-conseil/staffing.git $tmp
 Etape "Clone du repo GitHub en dossier temporaire (lecture + identifiants)" ($LASTEXITCODE -eq 0)
 if ($LASTEXITCODE -ne 0) { Read-Host "Entree pour fermer" ; exit 1 }
 Set-Location $tmp

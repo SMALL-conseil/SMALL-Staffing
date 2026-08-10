@@ -22,7 +22,7 @@ const caslonItalic = Libre_Caslon_Text({
 })
 
 export const metadata: Metadata = {
-  title: "SMALL App",
+  title: "SMALL Staffing",
   description: "Outil interne SMALL Big Change",
 }
 

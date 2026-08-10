@@ -7,9 +7,9 @@
 #   -DisplayName : nom affiché (interface, emails, titres)
 #
 # Remplace dans tous les fichiers texte :
-#   small-app  -> <name>            small_app -> <name_snake>
-#   SMALL_APP  -> <NAME_SNAKE>      SMALL App -> <DisplayName>
-# Puis renomme les fichiers deploy/small-app.* et scripts en conséquence.
+#   staffing  -> <name>            staffing -> <name_snake>
+#   STAFFING  -> <NAME_SNAKE>      SMALL Staffing -> <DisplayName>
+# Puis renomme les fichiers deploy/staffing.* et scripts en conséquence.
 # ============================================================
 param(
     [Parameter(Mandatory = $true)][string]$Name,
@@ -31,10 +31,10 @@ $files = Get-ChildItem -Recurse -File -Include $exts |
 $count = 0
 foreach ($f in $files) {
     $content = Get-Content $f.FullName -Raw
-    $new = $content -creplace 'SMALL_APP', $envp `
-                    -creplace 'small_app', $snake `
-                    -creplace 'small-app', $Name `
-                    -creplace 'SMALL App', $DisplayName
+    $new = $content -creplace 'STAFFING', $envp `
+                    -creplace 'staffing', $snake `
+                    -creplace 'staffing', $Name `
+                    -creplace 'SMALL Staffing', $DisplayName
     if ($new -cne $content) {
         Set-Content -Path $f.FullName -Value $new -NoNewline
         $count++
@@ -43,10 +43,10 @@ foreach ($f in $files) {
 
 # Renommage des fichiers porteurs du nom
 $renames = @(
-    @{ From = "deploy\small-app.env.example";              To = "deploy\$Name.env.example" },
-    @{ From = "deploy\small-app.preprod.env.example";      To = "deploy\$Name.preprod.env.example" },
-    @{ From = "deploy\scripts\remote-deploy-small-app.sh"; To = "deploy\scripts\remote-deploy-$Name.sh" },
-    @{ From = "deploy\scripts\remote-deploy-preprod-small-app.sh"; To = "deploy\scripts\remote-deploy-preprod-$Name.sh" },
+    @{ From = "deploy\staffing.env.example";              To = "deploy\$Name.env.example" },
+    @{ From = "deploy\staffing.preprod.env.example";      To = "deploy\$Name.preprod.env.example" },
+    @{ From = "deploy\scripts\remote-deploy-staffing.sh"; To = "deploy\scripts\remote-deploy-$Name.sh" },
+    @{ From = "deploy\scripts\remote-deploy-preprod-staffing.sh"; To = "deploy\scripts\remote-deploy-preprod-$Name.sh" },
     @{ From = "deploy\scripts\seed-personas-preprod.sql";  To = "deploy\scripts\seed-personas-$Name.sql" }
 )
 foreach ($r in $renames) {
