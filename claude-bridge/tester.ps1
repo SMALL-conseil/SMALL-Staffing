@@ -19,7 +19,7 @@ if (-not $bundle) {
 Write-Host "Bundle : $($bundle.Name)" -ForegroundColor Cyan
 
 $tmp = Join-Path $env:TEMP ("claude-test-livraison-" + (Get-Date -Format "HHmmss"))
-git clone --quiet https://github.com/SMALL-conseil/staffing.git $tmp
+git clone --quiet https://github.com/SMALL-conseil/SMALL-Staffing.git $tmp
 Etape "Clone du repo GitHub en dossier temporaire (lecture + identifiants)" ($LASTEXITCODE -eq 0)
 if ($LASTEXITCODE -ne 0) { Read-Host "Entree pour fermer" ; exit 1 }
 Set-Location $tmp
