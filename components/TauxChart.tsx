@@ -18,8 +18,10 @@ export interface TauxChartPoint {
 
 interface TauxChartProps {
   year: number
-  /** Mois courant 1-12 si l'année affichée est l'année en cours, sinon null. */
+  /** Mois courant 1-12 (repère jaune) si l'année affichée est l'année en cours, sinon null. */
   currentMonth: number | null
+  /** 1er mois affiché en pointillé (prévisionnel) ; null = tout en trait plein (année passée). */
+  forecastFrom: number | null
   points: TauxChartPoint[]
 }
 
@@ -29,7 +31,7 @@ const M = { top: 16, right: 118, bottom: 28, left: 46 }
 const PW = W - M.left - M.right
 const PH = H - M.top - M.bottom
 
-export default function TauxChart({ year, currentMonth, points }: TauxChartProps) {
+export default function TauxChart({ year, currentMonth, forecastFrom, points }: TauxChartProps) {
   const [hover, setHover] = useState<number | null>(null)
 
   const values = points.flatMap((p) => [p.sal, p.salIndep]).filter((v) => v > 0)
@@ -41,7 +43,7 @@ export default function TauxChart({ year, currentMonth, points }: TauxChartProps
   const gridSteps: number[] = []
   for (let v = yMin; v <= yMax + 1e-9; v += 0.1) gridSteps.push(Math.round(v * 10) / 10)
 
-  const cut = currentMonth === null ? 12 : currentMonth // dernier index (1-based) en trait plein
+  const cut = forecastFrom === null ? 12 : Math.max(forecastFrom, 1) // dernier index (1-based) en trait plein
   const path = (serie: (p: TauxChartPoint) => number, from: number, to: number) =>
     points
       .slice(from, to)
@@ -72,9 +74,13 @@ export default function TauxChart({ year, currentMonth, points }: TauxChartProps
             {s.label}
           </span>
         ))}
-        {currentMonth !== null && currentMonth < 12 && (
+        {forecastFrom !== null && (
           <span className="text-[11px] text-label ml-auto">
-            au-delà de {MOIS_LONGS[currentMonth - 1]} : prévisionnel (missions saisies)
+            {forecastFrom <= 1
+              ? "année entièrement prévisionnelle (missions saisies)"
+              : forecastFrom <= 12
+                ? `au-delà de ${MOIS_LONGS[forecastFrom - 1]} : prévisionnel (missions saisies)`
+                : null}
           </span>
         )}
       </div>

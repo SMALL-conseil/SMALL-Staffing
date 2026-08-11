@@ -18,6 +18,14 @@ import { monthlyKpis, ytdRates } from "../lib/staffing"
 
 const prisma = new PrismaClient()
 
+// Corrections ASSUMÉES par rapport à l'Excel (décisions équipe — cf. CLAUDE.md) :
+// Elvire HOUDEVILLE figure au registre Consultant de l'Excel (01/2025 → 09/2025,
+// staffable jamais staffée) alors qu'elle a toujours tenu un rôle siège — sa
+// période consultant faussait le taux de staffing 2025. Elle n'est importée
+// QUE comme siège. (Décision du 11/08/2026 ; scripts/corrections.ts applique
+// la même correction sur une base déjà importée.)
+const CONSULTANTS_EXCLUS = ["Elvire HOUDEVILLE"]
+
 // ---------- Lecture Excel ----------
 
 /** Sérial Excel (base 30/12/1899) → Date UTC minuit, null si vide/0. */
@@ -72,6 +80,10 @@ function readWorkbook(path: string) {
   for (const row of sheet("Consultant").slice(1)) {
     const name = asName(row[0])
     if (!name) continue
+    if (CONSULTANTS_EXCLUS.includes(name)) {
+      console.log(`  ⚠ ${name} : exclu du registre consultants (correction assumée — cf. CLAUDE.md)`)
+      continue
+    }
     const grade = asName(row[2])
     if (!grade || !(CONSULTANT_GRADES as readonly string[]).includes(grade))
       throw new Error(`grade consultant inconnu pour ${name} : « ${grade} »`)

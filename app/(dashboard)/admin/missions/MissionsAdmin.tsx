@@ -44,9 +44,12 @@ interface FormState {
 
 const EMPTY: FormState = { personId: "", client: "", startDate: "", endDate: "", share: "1", note: "" }
 
+type StatutFiltre = "toutes" | "en_cours" | "a_venir" | "terminees"
+
 export default function MissionsAdmin({ missions, consultants, clients }: Props) {
   const router = useRouter()
   const [filtre, setFiltre] = useState("")
+  const [statutFiltre, setStatutFiltre] = useState<StatutFiltre>("toutes")
   const [editing, setEditing] = useState<string | "new" | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [error, setError] = useState<string | null>(null)
@@ -54,13 +57,25 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const today = todayParis()
 
+  const statutDe = (m: MissionRow): StatutFiltre =>
+    m.start <= today && today <= m.end ? "en_cours" : m.start > today ? "a_venir" : "terminees"
+
+  const parStatut = useMemo(() => {
+    const n: Record<StatutFiltre, number> = { toutes: missions.length, en_cours: 0, a_venir: 0, terminees: 0 }
+    for (const m of missions) n[statutDe(m)]++
+    return n
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missions, today])
+
   const visibles = useMemo(() => {
     const f = filtre.trim().toLowerCase()
-    if (!f) return missions
-    return missions.filter(
-      (m) => m.personName.toLowerCase().includes(f) || m.client.toLowerCase().includes(f)
-    )
-  }, [missions, filtre])
+    return missions.filter((m) => {
+      if (statutFiltre !== "toutes" && statutDe(m) !== statutFiltre) return false
+      if (!f) return true
+      return m.personName.toLowerCase().includes(f) || m.client.toLowerCase().includes(f)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missions, filtre, statutFiltre, today])
 
   function openNew() {
     setForm(EMPTY)
@@ -132,7 +147,7 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-3">
         <input
           type="search"
           value={filtre}
@@ -147,6 +162,27 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
         <button type="button" onClick={openNew} className="btn btn-primary ml-auto">
           <Plus size={15} aria-hidden="true" /> Nouvelle mission
         </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filtrer par statut">
+        {(
+          [
+            ["toutes", "Toutes"],
+            ["en_cours", "En cours"],
+            ["a_venir", "À venir"],
+            ["terminees", "Terminées"],
+          ] as [StatutFiltre, string][]
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setStatutFiltre(value)}
+            className={`chip ${statutFiltre === value ? "chip-on" : ""}`}
+            aria-pressed={statutFiltre === value}
+          >
+            {label} ({parStatut[value]})
+          </button>
+        ))}
       </div>
 
       {editing !== null && (

@@ -135,6 +135,12 @@ Golden tests dans `tests/golden/` (`npm test`) : extraits du classeur de référ
   staffés > 0 ; périmètre = départ registre non antérieur au 1er janvier.
 - **Grade siège hors liste** (« DG SMALL Bordeaux ») : importé tel quel, compté
   dans AUCUNE ligne ni total du Suivi_Effectif (fidèle Excel).
+- **Correction assumée vs Excel (11/08/2026)** : Elvire HOUDEVILLE, au registre
+  Consultant de l'Excel (01/2025 → 09/2025, staffable jamais staffée) alors que
+  son rôle a toujours été siège, est RETIRÉE du registre consultants — elle
+  faussait le taux 2025. Import (`CONSULTANTS_EXCLUS` de import-excel.ts) et
+  bases existantes (`npx tsx scripts/corrections.ts`) alignés ; les fixtures
+  des golden tests restent, elles, le miroir exact de l'Excel.
 
 ### Pages (s2/s3 — lecture pour tout connecté, sauf « Registres & admin »)
 
