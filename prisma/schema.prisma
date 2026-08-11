@@ -25,3 +25,78 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// Métier staffing — réplique du classeur « Staffing SMALL Paris »
+// (registres Consultant / Siège / Mission_Consultant ; le reste se calcule,
+// moteur dans lib/staffing.ts, testé contre les golden values de l'Excel).
+// Dates métier en @db.Date : jours pleins, aucune composante horaire.
+// ============================================================
+
+// Personne de l'effectif — consultant OU membre du siège.
+// kind : PersonKind (lib/types.ts) — CONSULTANT | SIEGE.
+// grade : échelons FINS (lib/types.ts), jamais aplatis — consultants :
+//   Rookie, C, CS 1, CS 2, M 1, M 2, SM 1, SM 2, Indép ; siège : Fondateur,
+//   Directeur du développement, Office Manager, Business Developer,
+//   Sales Manager, Chief Mission Officer, Chargée de missions transverses, Rookie.
+// name : clé de rapprochement v1 (l'Excel référence les gens par nom) — unique
+// PAR kind : une même personne peut exister en consultant ET en siège
+// (changement de rôle, ex. Elvire HOUDEVILLE — fidèle aux deux registres) ;
+// boondId : clé de rapprochement de la synchro Boond (lot s4).
+model Person {
+  id            String        @id @default(cuid())
+  name          String
+  email         String?       @unique
+  kind          String
+  grade         String
+  arrivalDate   DateTime      @db.Date
+  departureDate DateTime?     @db.Date
+  managerId     String?
+  manager       Person?       @relation("PersonManager", fields: [managerId], references: [id])
+  managees      Person[]      @relation("PersonManager")
+  boondId       String?       @unique
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  absences      LongAbsence[]
+  missions      Mission[]
+
+  @@unique([name, kind])
+  @@index([kind])
+}
+
+// Absence prolongée (maternité, sabbatique, sans solde…) : fenêtre soustraite
+// des jours staffables. endDate null = absence ouverte.
+model LongAbsence {
+  id        String    @id @default(cuid())
+  personId  String
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  startDate DateTime  @db.Date
+  endDate   DateTime? @db.Date
+  label     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([personId])
+}
+
+// Mission d'un consultant chez un client — LA saisie qui remplace l'Excel (v1).
+// share : part d'intervention 0–1 (mi-temps possibles) ; plusieurs missions
+// par consultant, chevauchements autorisés (l'ordre de saisie fait foi pour
+// la carte de staffing : 1re mission chevauchant le mois).
+model Mission {
+  id        String   @id @default(cuid())
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  client    String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  share     Float    @default(1)
+  note      String?
+  rank      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([personId])
+  @@index([client])
+}
