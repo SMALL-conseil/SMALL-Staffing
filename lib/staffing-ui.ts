@@ -111,3 +111,46 @@ export function clientColorMap(missions: StaffMission[]): Map<string, ClientColo
 export function libelleMois(year: number, month: number): string {
   return `${MOIS_LONGS[month - 1]} ${year}`
 }
+
+// ------------------------------------------------------------
+// Variations des KPIs (tuiles comparatives du tableau de bord).
+// Taux : variation en POINTS de pourcentage (usage métier) ;
+// ETP : variation relative en %. Tendance selon le « bon sens » :
+// un taux qui monte est bon, un effectif qui monte est bon.
+// ------------------------------------------------------------
+
+export type Tendance = "hausse" | "baisse" | "stable"
+
+export interface Variation {
+  /** ex. « +5,3 pts » ou « −8,2 % » — null si non calculable (référence nulle). */
+  texte: string | null
+  tendance: Tendance
+  /** true = évolution dans le bon sens (vert), false = mauvais sens (rouge). */
+  bonSens: boolean
+}
+
+/** Variation d'un TAUX (0–1) en points de pourcentage (référence nulle → non calculable). */
+export function variationTaux(actuel: number, precedent: number): Variation {
+  if (precedent <= 0) return { texte: null, tendance: "stable", bonSens: true }
+  const deltaPts = (actuel - precedent) * 100
+  const tendance: Tendance = Math.abs(deltaPts) < 0.05 ? "stable" : deltaPts > 0 ? "hausse" : "baisse"
+  const signe = deltaPts > 0 ? "+" : deltaPts < 0 ? "−" : "±"
+  return {
+    texte: `${signe}${Math.abs(deltaPts).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pts`,
+    tendance,
+    bonSens: tendance !== "baisse",
+  }
+}
+
+/** Variation relative d'un ETP (référence nulle → non calculable). */
+export function variationEtp(actuel: number, precedent: number): Variation {
+  if (precedent <= 0) return { texte: null, tendance: "stable", bonSens: true }
+  const deltaPct = ((actuel - precedent) / precedent) * 100
+  const tendance: Tendance = Math.abs(deltaPct) < 0.05 ? "stable" : deltaPct > 0 ? "hausse" : "baisse"
+  const signe = deltaPct > 0 ? "+" : deltaPct < 0 ? "−" : "±"
+  return {
+    texte: `${signe}${Math.abs(deltaPct).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`,
+    tendance,
+    bonSens: tendance !== "baisse",
+  }
+}

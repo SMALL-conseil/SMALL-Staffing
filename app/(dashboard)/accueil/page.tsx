@@ -3,11 +3,22 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Hourglass } from "lucide-react"
 import { loadStaffingData } from "@/lib/staffing-load"
-import { headcount, icAtDate, yearKpis, ytdRates } from "@/lib/staffing"
+import { headcount, icAtDate, monthlyKpis, yearKpis, ytdRates } from "@/lib/staffing"
 import { CONSULTANT_GRADES, SIEGE_GRADES } from "@/lib/types"
-import { formatEtp, formatPct, libelleMois, MOIS_COURTS, todayParis } from "@/lib/staffing-ui"
+import {
+  formatEtp,
+  formatPct,
+  libelleMois,
+  MOIS_COURTS,
+  todayParis,
+  variationEtp,
+  variationTaux,
+} from "@/lib/staffing-ui"
 import { formatDateShort } from "@/lib/utils"
 import TauxChart from "@/components/TauxChart"
+import KpiTiles, { type KpiTile } from "@/components/KpiTiles"
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 // Tableau de bord — année navigable. Année en cours : KPIs du mois + YTD ;
 // autre année : agrégats annuels (taux de l'année, ETP moyens pondérés par
@@ -70,29 +81,78 @@ export default async function DashboardPage({
   const headsSiege = SIEGE_GRADES.reduce((n, g) => n + headcount(siege, g, year, headsMonth), 0)
   const headsCons = CONSULTANT_GRADES.reduce((n, g) => n + headcount(people, g, year, headsMonth), 0)
 
-  let tiles: { label: string; value: string; sub: string; underline: string; href?: string }[]
+  let tiles: KpiTile[]
   if (isCurrentYear) {
     const current = kpis[currentMonth - 1]
     const ytd = ytdRates(people, missions, year, today)
     const icList = icAtDate(people, missions, today)
+
+    // Références de comparaison : même mois N-1, et mois précédent.
+    const pmYear = currentMonth === 1 ? year - 1 : year
+    const pmMonth = currentMonth === 1 ? 12 : currentMonth - 1
+    const moisN1 = monthlyKpis(people, missions, year - 1, currentMonth)
+    const moisPrec = monthlyKpis(people, missions, pmYear, pmMonth)
+    const mm = String(currentMonth).padStart(2, "0")
+    const ytdN1 = ytdRates(people, missions, year - 1, `${year - 1}-${mm}-01`)
+    const ytdPrec =
+      pmYear === year
+        ? ytdRates(people, missions, year, `${year}-${String(pmMonth).padStart(2, "0")}-01`)
+        : ytdRates(people, missions, year - 1, `${year - 1}-12-01`)
+
     tiles = [
       {
         label: `Taux de staffing — ${libelleMois(year, currentMonth)}`,
         value: formatPct(current.tauxSalaries, 1),
         sub: `salariés + indép : ${formatPct(current.tauxSalariesIndep, 1)}`,
         underline: "bg-jaune-vif",
+        comparisons: [
+          {
+            label: cap(libelleMois(year - 1, currentMonth)),
+            value: formatPct(moisN1.tauxSalaries, 1),
+            variation: variationTaux(current.tauxSalaries, moisN1.tauxSalaries),
+          },
+          {
+            label: cap(libelleMois(pmYear, pmMonth)),
+            value: formatPct(moisPrec.tauxSalaries, 1),
+            variation: variationTaux(current.tauxSalaries, moisPrec.tauxSalaries),
+          },
+        ],
       },
       {
         label: `Taux YTD (au ${formatDateShort(ytd.cutoff)})`,
         value: formatPct(ytd.tauxSalaries, 1),
         sub: `salariés + indép : ${formatPct(ytd.tauxSalariesIndep, 1)}`,
         underline: "bg-jaune-doux",
+        comparisons: [
+          {
+            label: `YTD ${libelleMois(year - 1, currentMonth)}`,
+            value: formatPct(ytdN1.tauxSalaries, 1),
+            variation: variationTaux(ytd.tauxSalaries, ytdN1.tauxSalaries),
+          },
+          {
+            label: `YTD ${libelleMois(pmYear, pmMonth)}`,
+            value: formatPct(ytdPrec.tauxSalaries, 1),
+            variation: variationTaux(ytd.tauxSalaries, ytdPrec.tauxSalaries),
+          },
+        ],
       },
       {
         label: "Effectif salariés (ETP)",
         value: formatEtp(current.effectifSalaries),
         sub: `avec indép : ${formatEtp(current.effectifSalariesIndep)} · facturés : ${formatEtp(current.factures)}`,
         underline: "bg-rose",
+        comparisons: [
+          {
+            label: cap(libelleMois(year - 1, currentMonth)),
+            value: formatEtp(moisN1.effectifSalaries),
+            variation: variationEtp(current.effectifSalaries, moisN1.effectifSalaries),
+          },
+          {
+            label: cap(libelleMois(pmYear, pmMonth)),
+            value: formatEtp(moisPrec.effectifSalaries),
+            variation: variationEtp(current.effectifSalaries, moisPrec.effectifSalaries),
+          },
+        ],
       },
       {
         label: "Intercontrat (ETP)",
@@ -153,27 +213,7 @@ export default async function DashboardPage({
         {yearNav}
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
-        {tiles.map((k) => {
-          const inner = (
-            <>
-              <span className={`inline-block w-6 h-1 rounded-full mb-3 ${k.underline}`} aria-hidden="true" />
-              <div className="titre-formation text-[29px] leading-none whitespace-nowrap">{k.value}</div>
-              <div className="text-[11px] tracking-[0.08em] uppercase text-label mt-2">{k.label}</div>
-              <div className="text-[11.5px] text-texte-2 mt-1.5">{k.sub}</div>
-            </>
-          )
-          return k.href ? (
-            <Link key={k.label} href={k.href} className="card card-hover px-5 py-5 block">
-              {inner}
-            </Link>
-          ) : (
-            <div key={k.label} className="card px-5 py-5">
-              {inner}
-            </div>
-          )
-        })}
-      </div>
+      <KpiTiles tiles={tiles} />
 
       <div className="card px-6 py-6">
         <div className="flex items-baseline justify-between gap-4 flex-wrap">
