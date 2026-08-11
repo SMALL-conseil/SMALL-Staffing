@@ -6,6 +6,7 @@
 # ============================================================
 
 $candidats = @(
+    "C:\Dev\staffing-app",
     "C:\Dev\staffing"
 )
 $repo = $candidats | Where-Object { Test-Path (Join-Path $_ ".git") } | Select-Object -First 1

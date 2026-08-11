@@ -96,7 +96,47 @@ foi ; le bundle est la valise de Claude, jamais un mécanisme de synchro.
 - Rôles applicatifs : jamais écrasés par une éventuelle synchro externe ; après
   reconstruction de base, les reposer via `/admin/utilisateurs`.
 
-## Métier de l'outil (à compléter)
+## Métier de l'outil
 
-_Décrire ici les modèles, pages et règles métier au fur et à mesure — c'est la partie
-de ce fichier qui appartient à l'outil, tout ce qui précède appartient au framework._
+Réplique fidèle du classeur « Staffing SMALL Paris.xlsx » : seuls les 3 registres
+sont saisis (consultants, siège, missions) — tout le reste se RECALCULE.
+
+### Modèle (lot s1)
+
+`Person` (kind CONSULTANT|SIEGE ; grade FINS de `lib/types.ts`, jamais aplati ;
+name unique PAR kind — une personne peut être les deux, ex. Elvire HOUDEVILLE ;
+boondId pour la synchro s4) · `LongAbsence` (fenêtres soustraites du staffable) ·
+`Mission` (client, dates, part 0–1, `rank` = ordre de saisie — fait foi pour la
+carte de staffing).
+
+### Moteur `lib/staffing.ts` — réplique certifiée de l'Excel
+
+Golden tests dans `tests/golden/` (`npm test`) : extraits du classeur de référence,
+0 écart sur ses 6 221 cellules et vues au moment de l'autopsie. **Ne jamais faire
+évoluer le moteur sans les faire passer.** Sémantiques héritées à connaître :
+
+- **Lundi de Pentecôte TRAVAILLÉ** (journée de solidarité — mai 2026 = 18 j.o.).
+  Fériés calculés par année du mois ; l'Excel applique ceux de l'année pilotée à
+  toutes ses matrices — identique sur l'année affichée, le moteur est plus juste
+  ailleurs.
+- **Départ effectif d'un Indép = MAX(fins de ses missions)** (règle cachée de la
+  matrice Staffable) ; sans mission, jamais staffable ; mais reste compté en
+  TÊTES du Suivi_Effectif tant que le registre n'a pas de date de départ.
+- **Staffés ≠ somme par mission** : étendue en j.o. du min(débuts) au max(fins)
+  des missions chevauchant le mois (les trous entre missions sont pontés),
+  × MAX(Σ parts au 1er, Σ parts au dernier, Σ parts incluses), plafonné au
+  staffable. Trois cellules 2026 (Chiara BELLATI, Zoé MARQUOIN) en dépendent.
+- **Taux salariés mensuel** : numérateur = staffés des non-Indép (Rookie inclus,
+  bizarrerie assumée) ; **YTD** : hors Rookie ET Indép. Dénominateurs toujours
+  hors Rookie + Indép.
+- **Carte** : LE client du mois = 1re mission (rank) chevauchant le mois, si
+  staffés > 0 ; périmètre = départ registre non antérieur au 1er janvier.
+- **Grade siège hors liste** (« DG SMALL Bordeaux ») : importé tel quel, compté
+  dans AUCUNE ligne ni total du Suivi_Effectif (fidèle Excel).
+
+### Import initial
+
+`npx tsx scripts/import-excel.ts "<chemin du xlsx>" [--replace]` — importe les
+3 registres + absences, relie les managers, puis affiche les KPIs recalculés
+depuis la base (à comparer à l'Excel). `lib/staffing-load.ts` = passerelle
+base → moteur (réutilisée par les pages).
