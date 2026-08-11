@@ -3,7 +3,16 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Users, BarChart3, LogOut, CalendarDays, Hourglass } from "lucide-react"
+import {
+  Users,
+  BarChart3,
+  LogOut,
+  CalendarDays,
+  Hourglass,
+  Briefcase,
+  ClipboardList,
+  KeyRound,
+} from "lucide-react"
 import { roleLabels } from "@/lib/types"
 
 type NavItem = {
@@ -12,20 +21,20 @@ type NavItem = {
   icon: React.ElementType
 }
 
-// Navigation par rôle — étendre ici quand l'outil gagne des pages.
-const navByRole: Record<string, NavItem[]> = {
-  MEMBER: [
-    { label: "Tableau de bord", href: "/accueil", icon: BarChart3 },
-    { label: "Carte de staffing", href: "/carte", icon: CalendarDays },
-    { label: "Intercontrat", href: "/intercontrat", icon: Hourglass },
-  ],
-  ADMIN: [
-    { label: "Tableau de bord", href: "/accueil", icon: BarChart3 },
-    { label: "Carte de staffing", href: "/carte", icon: CalendarDays },
-    { label: "Intercontrat", href: "/intercontrat", icon: Hourglass },
-    { label: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
-  ],
-}
+// Navigation — le groupe « Menu » est visible de tous, le groupe
+// « Registres & admin » réservé au rôle ADMIN.
+const NAV_MENU: NavItem[] = [
+  { label: "Tableau de bord", href: "/accueil", icon: BarChart3 },
+  { label: "Carte de staffing", href: "/carte", icon: CalendarDays },
+  { label: "Intercontrat", href: "/intercontrat", icon: Hourglass },
+  { label: "Effectifs", href: "/effectifs", icon: Users },
+]
+
+const NAV_ADMIN: NavItem[] = [
+  { label: "Missions", href: "/admin/missions", icon: Briefcase },
+  { label: "Personnes & absences", href: "/admin/personnes", icon: ClipboardList },
+  { label: "Utilisateurs", href: "/admin/utilisateurs", icon: KeyRound },
+]
 
 interface SidebarProps {
   user: { name?: string | null; email?: string | null; role: string }
@@ -33,7 +42,10 @@ interface SidebarProps {
 
 export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
-  const navItems = navByRole[user.role] ?? navByRole.MEMBER
+  const groups: { kicker: string; items: NavItem[] }[] = [
+    { kicker: "Menu", items: NAV_MENU },
+    ...(user.role === "ADMIN" ? [{ kicker: "Registres & admin", items: NAV_ADMIN }] : []),
+  ]
 
   return (
     <aside className="w-60 min-h-screen bg-carte border-r border-ligne flex flex-col shrink-0">
@@ -47,27 +59,31 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3.5 py-2" aria-label="Navigation principale">
-        <div className="text-label text-[10px] tracking-[0.2em] uppercase px-3.5 pt-3 pb-2">
-          Menu
-        </div>
-        {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href)
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[9px] text-[13.5px] mb-0.5 transition-colors ${
-                isActive
-                  ? "bg-jaune-pale text-anthracite font-bold"
-                  : "text-texte-2 hover:text-anthracite hover:bg-fond"
-              }`}
-            >
-              <item.icon size={16} aria-hidden="true" />
-              <span className="flex-1">{item.label}</span>
-            </Link>
-          )
-        })}
+        {groups.map((group) => (
+          <div key={group.kicker}>
+            <div className="text-label text-[10px] tracking-[0.2em] uppercase px-3.5 pt-3 pb-2">
+              {group.kicker}
+            </div>
+            {group.items.map((item) => {
+              const isActive = pathname.startsWith(item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[9px] text-[13.5px] mb-0.5 transition-colors ${
+                    isActive
+                      ? "bg-jaune-pale text-anthracite font-bold"
+                      : "text-texte-2 hover:text-anthracite hover:bg-fond"
+                  }`}
+                >
+                  <item.icon size={16} aria-hidden="true" />
+                  <span className="flex-1">{item.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Utilisateur */}

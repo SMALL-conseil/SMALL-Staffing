@@ -36,6 +36,8 @@ livraison, et les pièges déjà rencontrés sur les outils précédents. Compl�
 - Heures « murales » Europe/Paris : le conteneur tourne en UTC — tout affichage d'heure
   passe par un formatteur à timeZone explicite (`lib/utils.ts`), et tout ICS utilise
   `floating: true`.
+- Fichier `proxy.ts` (ex-`middleware.ts`, renommage Next 16 — même rôle : porte
+  d'authentification). À reporter dans small-app-template.
 - Emails : `SMTP_USER`/`SMTP_PASS` vides = envois « simulés » loggés (mécanisme
   d'étanchéité préprod — à conserver) ; `SMTP_FROM` = même adresse que `SMTP_USER`,
   chevron `>` final obligatoire. ⚠️ Auth SMTP basique coupée par Microsoft fin 2026 →
@@ -134,16 +136,28 @@ Golden tests dans `tests/golden/` (`npm test`) : extraits du classeur de référ
 - **Grade siège hors liste** (« DG SMALL Bordeaux ») : importé tel quel, compté
   dans AUCUNE ligne ni total du Suivi_Effectif (fidèle Excel).
 
-### Pages (lot s2 — lecture pour tout connecté)
+### Pages (s2/s3 — lecture pour tout connecté, sauf « Registres & admin »)
 
 Tableau de bord `/accueil` (KPIs mois courant + YTD, graphe 12 mois, table
 mensuelle), Carte de staffing `/carte?annee=YYYY` (grille consultant × mois,
 « IC » = staffable sans mission, « — » = hors effectif, couleurs clients
-stables par ordre de 1re apparition), Intercontrat `/intercontrat`. Les pages
-ne calculent RIEN : tout vient de `lib/staffing.ts` via `lib/staffing-load.ts` ;
-aides d'affichage (dates murales Paris, formats fr, palette clients) dans
-`lib/staffing-ui.ts`. Graphe = SVG maison (`components/TauxChart.tsx`) : trait
-plein jusqu'au mois courant, pointillé = prévisionnel.
+stables par ordre de 1re apparition), Intercontrat `/intercontrat`, Effectifs
+`/effectifs?annee=YYYY` (têtes par grade × 13 mois, grades hors grilles
+comptés nulle part). Les pages ne calculent RIEN : tout vient de
+`lib/staffing.ts` via `lib/staffing-load.ts` ; aides d'affichage (dates
+murales Paris, formats fr, palette clients) dans `lib/staffing-ui.ts`.
+Graphe = SVG maison (`components/TauxChart.tsx`) : trait plein jusqu'au mois
+courant, pointillé = prévisionnel.
+
+### Registres ADMIN (s3 — la saisie qui remplace l'Excel)
+
+`/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la
+création, JAMAIS modifié ensuite — il fait foi pour la carte). `/admin/personnes` :
+consultants/siège en LECTURE (registre alimenté par import Excel puis synchro
+Boond s4) + CRUD des absences prolongées. Pattern template : routes API
+(`app/api/missions*`, `app/api/absences*`, gate ADMIN) + composants client
+`fetch` + `router.refresh()`. Validation centralisée dans `lib/staffing-admin.ts`
+(pur, testé — part accepte la virgule « 0,8 », fin d'absence vide = ouverte).
 
 ### Livraison en « local d'abord » (tant que le VPS n'est pas greffé)
 
