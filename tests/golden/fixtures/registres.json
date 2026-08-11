@@ -1,0 +1,996 @@
+{
+ "exportedFrom": "Staffing SMALL Paris.xlsx",
+ "consultants": [
+  {
+   "name": "Aicha PY",
+   "email": "aicha.py@small-conseil.com",
+   "grade": "SM 2",
+   "arrival": "2023-01-09",
+   "departure": null,
+   "absenceStart": "2025-01-01",
+   "absenceEnd": "2025-04-02",
+   "manager": null
+  },
+  {
+   "name": "Matthieu DUVAL",
+   "email": "matthieu.duval@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2023-01-09",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Chloé TROTTIN",
+   "email": "chloe.trottin@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2023-03-22",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Florian GUSTAVE"
+  },
+  {
+   "name": "Rémi BEGYN",
+   "email": "remi.begyn@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2023-06-13",
+   "departure": "2026-06-12",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Emilien JUSSIAUME-MILLET",
+   "email": "emilien.jussiaume@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2023-06-20",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aicha PY"
+  },
+  {
+   "name": "Charlotte GUAY",
+   "email": "charlotte.guay@small-conseil.com",
+   "grade": "M 2",
+   "arrival": "2023-08-21",
+   "departure": "2025-11-14",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Lucie TAING",
+   "email": "lucie.taing@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2023-09-05",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aurélie MORVAND"
+  },
+  {
+   "name": "Anais VANEL",
+   "email": "anais.vanel@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2023-10-02",
+   "departure": "2026-01-28",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Carmen GOMEZ-MULHAUSER",
+   "email": "carmen.gomez@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2023-10-09",
+   "departure": "2025-08-31",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Clémence BUYSSE",
+   "email": "clemence.buysse@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2023-10-16",
+   "departure": null,
+   "absenceStart": "2026-06-07",
+   "absenceEnd": "2026-12-31",
+   "manager": "Matthieu DUVAL"
+  },
+  {
+   "name": "Pierre REBILLAT",
+   "email": "pierre.rebillat@small-conseil.com",
+   "grade": "M 2",
+   "arrival": "2023-11-29",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Emilien JUSSIAUME-MILLET"
+  },
+  {
+   "name": "Florian GUSTAVE",
+   "email": "florian.gustave@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2024-01-02",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Mélanie TEZKRATT",
+   "email": "melanie.tezkratt@small-conseil.com",
+   "grade": "M 2",
+   "arrival": "2024-01-02",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aicha PY"
+  },
+  {
+   "name": "Pierre GAYAUD",
+   "email": "pierre.gayaud@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2024-03-04",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Lucie TAING"
+  },
+  {
+   "name": "Thessa LOPES",
+   "email": "thessa.lopes@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2024-07-20",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Mélanie TEZKRATT"
+  },
+  {
+   "name": "Marc KOLTA",
+   "email": null,
+   "grade": "Indép",
+   "arrival": "2024-09-01",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Raffi OKHKIAN",
+   "email": null,
+   "grade": "Indép",
+   "arrival": "2024-09-01",
+   "departure": "2025-12-31",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Aurélie MORVAND",
+   "email": "aurelie.morvand@small-conseil.com",
+   "grade": "SM 2",
+   "arrival": "2024-09-05",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Alice RAFFET",
+   "email": "alice.raffet@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2024-09-09",
+   "departure": null,
+   "absenceStart": "2026-08-01",
+   "absenceEnd": "2026-12-31",
+   "manager": "Matthieu DUVAL"
+  },
+  {
+   "name": "Elvire HOUDEVILLE",
+   "email": "elvire.houdeville@small-conseil.com",
+   "grade": "C",
+   "arrival": "2025-01-13",
+   "departure": "2025-09-30",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Chiara BELLATI",
+   "email": "chiara.bellati@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2025-01-27",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Lucie TAING"
+  },
+  {
+   "name": "Clémence GIROMAGNY",
+   "email": "clemence.giromagny@small-conseil.com",
+   "grade": "Rookie",
+   "arrival": "2025-01-27",
+   "departure": "2025-07-23",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Julie BICHON",
+   "email": "julie.bichon@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2025-01-27",
+   "departure": null,
+   "absenceStart": "2026-10-18",
+   "absenceEnd": "2027-02-28",
+   "manager": "Aurélie MORVAND"
+  },
+  {
+   "name": "Sylvain PONCET",
+   "email": "sylvain.poncet@small-conseil.com",
+   "grade": "C",
+   "arrival": "2025-02-17",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Pierre REBILLAT"
+  },
+  {
+   "name": "Marion GOUARIN",
+   "email": "marion.gouarin@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2025-02-24",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Julie BICHON"
+  },
+  {
+   "name": "Sandy GOUVEIA",
+   "email": null,
+   "grade": "Indép",
+   "arrival": "2025-04-02",
+   "departure": "2025-06-30",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Erwan LUCAS",
+   "email": "erwan.lucas@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2025-04-07",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Mélanie TEZKRATT"
+  },
+  {
+   "name": "Jaymin PATEL",
+   "email": null,
+   "grade": "Indép",
+   "arrival": "2025-04-14",
+   "departure": "2025-05-09",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Marion ORTIZ-ORAIN",
+   "email": "marion.ortiz@small-conseil.com",
+   "grade": "M 2",
+   "arrival": "2025-05-15",
+   "departure": "2025-07-18",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Ninon FILLON",
+   "email": "ninon.fillon@small-conseil.com",
+   "grade": "Rookie",
+   "arrival": "2025-07-15",
+   "departure": "2025-12-31",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Alice RAFFET"
+  },
+  {
+   "name": "Zoé MARQUOIN",
+   "email": "zoe.marquoin@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2025-09-01",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Anais MARTIN",
+   "email": "anais.martin@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2025-09-08",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aicha PY"
+  },
+  {
+   "name": "Melanie GOUY",
+   "email": "melanie.gouy@small-conseil.com",
+   "grade": "C",
+   "arrival": "2025-10-01",
+   "departure": "2026-08-31",
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Chloé TROTTIN"
+  },
+  {
+   "name": "Jade HASSINE",
+   "email": "jade.hassine@small-conseil.com",
+   "grade": "C",
+   "arrival": "2025-10-20",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Pierre REBILLAT"
+  },
+  {
+   "name": "Julien CAZABAT",
+   "email": "julien.cazabat@small-conseil.com",
+   "grade": "M 2",
+   "arrival": "2025-11-03",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aurélie MORVAND"
+  },
+  {
+   "name": "Ouahib JALAL",
+   "email": "ouahib.jalal@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2025-11-17",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Emilien JUSSIAUME-MILLET"
+  },
+  {
+   "name": "Mathilde JEANNOT",
+   "email": "mathilde.jeannot@small-conseil.com",
+   "grade": "SM 1",
+   "arrival": "2026-01-05",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Danny GAURAT",
+   "email": "danny.gaurat@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2026-01-12",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Julie BICHON"
+  },
+  {
+   "name": "Tristan GRISON",
+   "email": "tristan.grison@small-conseil.com",
+   "grade": "C",
+   "arrival": "2026-01-12",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Emilien JUSSIAUME-MILLET"
+  },
+  {
+   "name": "Marion TASTES",
+   "email": "marion.tastes@small-conseil.com",
+   "grade": "M 1",
+   "arrival": "2026-01-12",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Matthieu DUVAL"
+  },
+  {
+   "name": "Arnaud CREHALET",
+   "email": "arnaud.crehalet@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2026-01-26",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Chiara BELLATI"
+  },
+  {
+   "name": "Christophe RMILI",
+   "email": "christophe.rmili@small-conseil.com",
+   "grade": "SM 2",
+   "arrival": "2026-03-02",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Clément SOONEKINDT",
+   "email": "clement.soonekindt@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2026-03-30",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Christophe RMILI"
+  },
+  {
+   "name": "Louis-Pierre KAUFFMAN",
+   "email": "louis-pierre.kauffman@small-conseil.com",
+   "grade": "C",
+   "arrival": "2026-04-07",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Florian GUSTAVE"
+  },
+  {
+   "name": "Victor RINGENBACH",
+   "email": "victor.ringenbach@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2026-05-04",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Mathilde JEANNOT"
+  },
+  {
+   "name": "Mathis SARRAZIN",
+   "email": "mathis.sarrazin@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2026-06-01",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Julien CAZABAT"
+  },
+  {
+   "name": "Marion CHENE",
+   "email": "marion.chene@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2026-06-08",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": "Aicha PY"
+  },
+  {
+   "name": "Anaïs MATHONNET",
+   "email": "anais.mathonnet@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2026-09-07",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Alice TRENQUIER",
+   "email": "alice.trenquier@small-conseil.com",
+   "grade": "CS 2",
+   "arrival": "2026-09-07",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  },
+  {
+   "name": "Louis BUFFET",
+   "email": "louis.buffet@small-conseil.com",
+   "grade": "CS 1",
+   "arrival": "2026-10-12",
+   "departure": null,
+   "absenceStart": null,
+   "absenceEnd": null,
+   "manager": null
+  }
+ ],
+ "siege": [
+  {
+   "name": "Sacha MINEO",
+   "grade": "Fondateur",
+   "arrival": "2023-01-09",
+   "departure": null
+  },
+  {
+   "name": "Fanny FONVIEILLE",
+   "grade": "Fondateur",
+   "arrival": "2023-01-09",
+   "departure": null
+  },
+  {
+   "name": "Elodie MARIA",
+   "grade": "Chief Mission Officer",
+   "arrival": "2023-06-12",
+   "departure": null
+  },
+  {
+   "name": "Camille PONSGEN",
+   "grade": "Office Manager",
+   "arrival": "2024-03-19",
+   "departure": null
+  },
+  {
+   "name": "Nicolas FONVIEILLE",
+   "grade": "Sales Manager",
+   "arrival": "2024-02-26",
+   "departure": "2024-12-31"
+  },
+  {
+   "name": "Gilles FOCH",
+   "grade": "Directeur du développement",
+   "arrival": "2025-03-01",
+   "departure": null
+  },
+  {
+   "name": "Maxime LEBOUIN",
+   "grade": "Business Developer",
+   "arrival": "2025-09-01",
+   "departure": null
+  },
+  {
+   "name": "Noé LE GUIL",
+   "grade": "Sales Manager",
+   "arrival": "2025-09-01",
+   "departure": null
+  },
+  {
+   "name": "Adrien BOYER",
+   "grade": "DG SMALL Bordeaux",
+   "arrival": "2025-10-01",
+   "departure": null
+  },
+  {
+   "name": "Elvire HOUDEVILLE",
+   "grade": "Chargée de missions transverses",
+   "arrival": "2025-01-13",
+   "departure": null
+  }
+ ],
+ "missions": [
+  {
+   "consultant": "Matthieu DUVAL",
+   "client": "SUEZ",
+   "start": "2025-01-01",
+   "end": "2025-06-04",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chloé TROTTIN",
+   "client": "CARAC",
+   "start": "2025-01-01",
+   "end": "2025-05-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Rémi BEGYN",
+   "client": "BPI",
+   "start": "2025-01-01",
+   "end": "2026-06-12",
+   "share": 1.0
+  },
+  {
+   "consultant": "Emilien JUSSIAUME-MILLET",
+   "client": "ONEY",
+   "start": "2025-01-01",
+   "end": "2025-04-11",
+   "share": 1.0
+  },
+  {
+   "consultant": "Charlotte GUAY",
+   "client": "CNP",
+   "start": "2025-03-10",
+   "end": "2025-10-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Lucie TAING",
+   "client": "SUEZ",
+   "start": "2025-01-01",
+   "end": "2025-02-28",
+   "share": 1.0
+  },
+  {
+   "consultant": "Anais VANEL",
+   "client": "CNP",
+   "start": "2025-01-01",
+   "end": "2026-01-28",
+   "share": 1.0
+  },
+  {
+   "consultant": "Carmen GOMEZ-MULHAUSER",
+   "client": "PLUXEE",
+   "start": "2025-01-01",
+   "end": "2025-08-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Clémence BUYSSE",
+   "client": "SUEZ",
+   "start": "2025-01-01",
+   "end": "2025-02-28",
+   "share": 1.0
+  },
+  {
+   "consultant": "Pierre REBILLAT",
+   "client": "SUEZ",
+   "start": "2025-01-01",
+   "end": "2026-05-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Mélanie TEZKRATT",
+   "client": "ONEY",
+   "start": "2025-01-01",
+   "end": "2025-07-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Florian GUSTAVE",
+   "client": "FDJ",
+   "start": "2025-01-01",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Pierre GAYAUD",
+   "client": "CARAC",
+   "start": "2025-01-01",
+   "end": "2025-02-28",
+   "share": 1.0
+  },
+  {
+   "consultant": "Thessa LOPES",
+   "client": "BPI",
+   "start": "2025-01-01",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Aurélie MORVAND",
+   "client": "ACCOR",
+   "start": "2025-01-01",
+   "end": "2025-07-15",
+   "share": 1.0
+  },
+  {
+   "consultant": "Raffi OKHKIAN",
+   "client": "SUEZ",
+   "start": "2025-01-01",
+   "end": "2025-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Alice RAFFET",
+   "client": "ACCOR",
+   "start": "2025-01-01",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Marc KOLTA",
+   "client": "GROUPAMA",
+   "start": "2025-01-01",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chiara BELLATI",
+   "client": "ACCOR",
+   "start": "2025-01-27",
+   "end": "2025-11-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Marion GOUARIN",
+   "client": "FDJ",
+   "start": "2025-02-24",
+   "end": "2025-12-02",
+   "share": 1.0
+  },
+  {
+   "consultant": "Marion GOUARIN",
+   "client": "FDJ",
+   "start": "2026-01-02",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Pierre GAYAUD",
+   "client": "CNP",
+   "start": "2025-03-31",
+   "end": "2025-10-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Sandy GOUVEIA",
+   "client": "ACCOR",
+   "start": "2025-04-02",
+   "end": "2025-06-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Lucie TAING",
+   "client": "GROUPAMA",
+   "start": "2025-04-07",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Sylvain PONCET",
+   "client": "GROUPAMA",
+   "start": "2025-05-05",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Jaymin PATEL",
+   "client": "CARAC",
+   "start": "2025-04-14",
+   "end": "2025-05-09",
+   "share": 1.0
+  },
+  {
+   "consultant": "Erwan LUCAS",
+   "client": "SUEZ",
+   "start": "2025-05-21",
+   "end": "2025-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Clémence BUYSSE",
+   "client": "CNOEC",
+   "start": "2025-05-19",
+   "end": "2026-08-17",
+   "share": 1.0
+  },
+  {
+   "consultant": "Julie BICHON",
+   "client": "PMF",
+   "start": "2025-06-19",
+   "end": "2026-01-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Aicha PY",
+   "client": "WEAVENN",
+   "start": "2025-06-23",
+   "end": "2025-09-30",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chloé TROTTIN",
+   "client": "ACCOR",
+   "start": "2025-07-16",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Emilien JUSSIAUME-MILLET",
+   "client": "LBP",
+   "start": "2025-07-28",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Zoé MARQUOIN",
+   "client": "ONEY",
+   "start": "2025-09-04",
+   "end": "2026-03-06",
+   "share": 1.0
+  },
+  {
+   "consultant": "Melanie GOUY",
+   "client": "PMF",
+   "start": "2025-10-03",
+   "end": "2026-08-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Ouahib JALAL",
+   "client": "LBP",
+   "start": "2025-11-18",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Aurélie MORVAND",
+   "client": "MH",
+   "start": "2025-10-09",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Anais MARTIN",
+   "client": "Dior",
+   "start": "2025-11-04",
+   "end": "2026-06-02",
+   "share": 1.0
+  },
+  {
+   "consultant": "Matthieu DUVAL",
+   "client": "GROUPAMA",
+   "start": "2025-11-24",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Jade HASSINE",
+   "client": "ACCOR",
+   "start": "2026-01-05",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Mathilde JEANNOT",
+   "client": "LOREAL",
+   "start": "2026-01-06",
+   "end": "2026-01-19",
+   "share": 1.0
+  },
+  {
+   "consultant": "Mélanie TEZKRATT",
+   "client": "GROUPAMA",
+   "start": "2026-01-09",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Pierre GAYAUD",
+   "client": "GROUPAMA",
+   "start": "2026-01-09",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Julie BICHON",
+   "client": "ACCOR",
+   "start": "2026-02-01",
+   "end": "2026-09-11",
+   "share": 1.0
+  },
+  {
+   "consultant": "Julien CAZABAT",
+   "client": "CNOEC",
+   "start": "2026-01-12",
+   "end": "2026-09-05",
+   "share": 1.0
+  },
+  {
+   "consultant": "Marion TASTES",
+   "client": "CNOEC",
+   "start": "2026-01-12",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chiara BELLATI",
+   "client": "ACCOR",
+   "start": "2026-01-13",
+   "end": "2026-03-16",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chiara BELLATI",
+   "client": "ACCOR",
+   "start": "2026-03-17",
+   "end": "2026-12-31",
+   "share": 0.6
+  },
+  {
+   "consultant": "Erwan LUCAS",
+   "client": "PMF",
+   "start": "2026-01-26",
+   "end": "2026-04-28",
+   "share": 1.0
+  },
+  {
+   "consultant": "Arnaud CREHALET",
+   "client": "EDENRED",
+   "start": "2026-03-02",
+   "end": "2026-04-30",
+   "share": 0.75
+  },
+  {
+   "consultant": "Arnaud CREHALET",
+   "client": "EDENRED",
+   "start": "2026-05-01",
+   "end": "2026-08-31",
+   "share": 0.85
+  },
+  {
+   "consultant": "Mathilde JEANNOT",
+   "client": "ACCOR",
+   "start": "2026-04-13",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Zoé MARQUOIN",
+   "client": "CCF",
+   "start": "2026-03-26",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Clément SOONEKINDT",
+   "client": "MH",
+   "start": "2026-03-31",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Christophe RMILI",
+   "client": "ACCOR",
+   "start": "2026-03-26",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Louis-Pierre KAUFFMAN",
+   "client": "GROUPAMA",
+   "start": "2026-04-08",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Tristan GRISON",
+   "client": "PERNOD RICARD",
+   "start": "2026-04-15",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Erwan LUCAS",
+   "client": "BROADCOM",
+   "start": "2026-04-29",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Chiara BELLATI",
+   "client": "BPI",
+   "start": "2026-05-27",
+   "end": "2026-12-31",
+   "share": 0.4
+  },
+  {
+   "consultant": "Marion CHENE",
+   "client": "ACCOR",
+   "start": "2026-07-15",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Pierre REBILLAT",
+   "client": "ACCOR",
+   "start": "2026-07-15",
+   "end": "2026-12-31",
+   "share": 1.0
+  },
+  {
+   "consultant": "Mathis SARRAZIN",
+   "client": "MH",
+   "start": "2026-07-27",
+   "end": "2026-12-31",
+   "share": 1.0
+  }
+ ]
+}
