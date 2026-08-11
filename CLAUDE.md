@@ -134,6 +134,24 @@ Golden tests dans `tests/golden/` (`npm test`) : extraits du classeur de référ
 - **Grade siège hors liste** (« DG SMALL Bordeaux ») : importé tel quel, compté
   dans AUCUNE ligne ni total du Suivi_Effectif (fidèle Excel).
 
+### Pages (lot s2 — lecture pour tout connecté)
+
+Tableau de bord `/accueil` (KPIs mois courant + YTD, graphe 12 mois, table
+mensuelle), Carte de staffing `/carte?annee=YYYY` (grille consultant × mois,
+« IC » = staffable sans mission, « — » = hors effectif, couleurs clients
+stables par ordre de 1re apparition), Intercontrat `/intercontrat`. Les pages
+ne calculent RIEN : tout vient de `lib/staffing.ts` via `lib/staffing-load.ts` ;
+aides d'affichage (dates murales Paris, formats fr, palette clients) dans
+`lib/staffing-ui.ts`. Graphe = SVG maison (`components/TauxChart.tsx`) : trait
+plein jusqu'au mois courant, pointillé = prévisionnel.
+
+### Livraison en « local d'abord » (tant que le VPS n'est pas greffé)
+
+`claude-bridge/appliquer-local.ps1` : merge le bundle dans `main` et pousse
+main SEULEMENT — preprod n'est pas touchée, aucune CI de déploiement ne part.
+`livrer-staffing.ps1` (main + preprod → CI préprod) reprend du service une
+fois le VPS greffé (runbook : voir projet claude.ai, doc Avancement_s2).
+
 ### Import initial
 
 `npx tsx scripts/import-excel.ts "<chemin du xlsx>" [--replace]` — importe les

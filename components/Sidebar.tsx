@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Home, Users, BarChart3, LogOut } from "lucide-react"
+import { Users, BarChart3, LogOut, CalendarDays, Hourglass } from "lucide-react"
 import { roleLabels } from "@/lib/types"
 
 type NavItem = {
@@ -15,12 +15,15 @@ type NavItem = {
 // Navigation par rôle — étendre ici quand l'outil gagne des pages.
 const navByRole: Record<string, NavItem[]> = {
   MEMBER: [
-    { label: "Accueil", href: "/accueil", icon: Home },
+    { label: "Tableau de bord", href: "/accueil", icon: BarChart3 },
+    { label: "Carte de staffing", href: "/carte", icon: CalendarDays },
+    { label: "Intercontrat", href: "/intercontrat", icon: Hourglass },
   ],
   ADMIN: [
-    { label: "Accueil", href: "/accueil", icon: Home },
+    { label: "Tableau de bord", href: "/accueil", icon: BarChart3 },
+    { label: "Carte de staffing", href: "/carte", icon: CalendarDays },
+    { label: "Intercontrat", href: "/intercontrat", icon: Hourglass },
     { label: "Utilisateurs", href: "/admin/utilisateurs", icon: Users },
-    { label: "Reporting", href: "/admin/reporting", icon: BarChart3 },
   ],
 }
 
@@ -38,7 +41,7 @@ export default function Sidebar({ user }: SidebarProps) {
       <div className="px-6 pt-7 pb-5">
         <div className="text-anthracite text-[22px] font-bold tracking-[0.18em]">SMALL</div>
         <div className="text-label text-[10px] tracking-[0.32em] uppercase mt-1">
-          App
+          Staffing
         </div>
       </div>
 
