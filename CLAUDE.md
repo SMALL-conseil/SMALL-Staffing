@@ -166,6 +166,23 @@ main SEULEMENT — preprod n'est pas touchée, aucune CI de déploiement ne part
 `livrer-staffing.ps1` (main + preprod → CI préprod) reprend du service une
 fois le VPS greffé (runbook : voir projet claude.ai, doc Avancement_s2).
 
+### Synchro Boond (s4 — quotidienne, personnes uniquement)
+
+`lib/boond.ts` (client JWT HS256 + extraction, aligné Formation) et
+`lib/boond-sync.ts` (logique, testée avec rollback). Invariants ≠ Formation :
+**grade = Titre Boond BRUT** (jamais aplati) ; **personne jamais supprimée ni
+masquée** (départ = departureDate, absents du flux seulement signalés) ; les
+missions ne sont JAMAIS touchées. Rapprochement : boondId → email → nom, même
+kind uniquement (conflits consultant/siège signalés, non modifiés). Kind d'un
+nouveau : titre consultant fin → CONSULTANT, titre siège → SIEGE, inconnu →
+CONSULTANT supposé (signalé). Sans date d'arrivée : non créé (le moteur en
+dépend). Route `/api/boond/sync` : GET x-cron-secret (cron VPS 06h10,
+`deploy/cron/crontab.txt`) ou POST session ADMIN (boutons de /admin/personnes,
+dry run par rollback de transaction). Rapport JSON en base (SyncRun) + états
+Boond relevés sur Person (boondState) → croisement de contrôle (2=IC vs
+mission en cours, 3=en mission vs aucune). **Premier branchement** :
+`npx tsx scripts/boond-inspect.ts` pour figer les BOOND_* (.env.example).
+
 ### Import initial
 
 `npx tsx scripts/import-excel.ts "<chemin du xlsx>" [--replace]` — importe les

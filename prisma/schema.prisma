@@ -55,6 +55,10 @@ model Person {
   manager       Person?       @relation("PersonManager", fields: [managerId], references: [id])
   managees      Person[]      @relation("PersonManager")
   boondId       String?       @unique
+  // Dernier état Boond relevé par la synchro (1 = à venir, 2 = IC, 3 = en
+  // mission) — sert au croisement de contrôle avec le calcul missions.
+  boondState    String?
+  boondSyncedAt DateTime?
   active        Boolean       @default(true)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -78,6 +82,20 @@ model LongAbsence {
   updatedAt DateTime  @updatedAt
 
   @@index([personId])
+}
+
+// Journal des synchronisations Boond — le dernier rapport s'affiche en admin.
+// report : JSON du SyncReport (lib/boond-sync.ts).
+model SyncRun {
+  id         String    @id @default(cuid())
+  kind       String    @default("BOOND")
+  dryRun     Boolean   @default(false)
+  ok         Boolean
+  report     Json?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([kind, startedAt])
 }
 
 // Mission d'un consultant chez un client — LA saisie qui remplace l'Excel (v1).

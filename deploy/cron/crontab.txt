@@ -1,0 +1,10 @@
+# ============================================================
+#  Tâches planifiées STAFFING — lignes à AJOUTER au crontab existant du VPS
+#  (crontab -e, utilisateur small — le backup quotidien y est déjà géré au
+#  niveau central). Remplacer REMPLACER_PAR_CRON_SECRET par le CRON_SECRET
+#  de staffing.env.
+# ============================================================
+
+# --- Synchronisation Boond → registre des personnes (06h10, après la synchro Formation de 06h00) ---
+# Test sans écriture : ajouter ?dryRun=1
+10 6 * * *  curl -fsS -H "x-cron-secret: REMPLACER_PAR_CRON_SECRET" "https://staffing.small-conseil.com/api/boond/sync" >/dev/null

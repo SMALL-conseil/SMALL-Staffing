@@ -4,8 +4,10 @@ import { redirect } from "next/navigation"
 import { PersonKind } from "@/lib/types"
 import { toIsoDate } from "@/lib/staffing-load"
 import { todayParis } from "@/lib/staffing-ui"
-import { formatDateShort } from "@/lib/utils"
+import { formatDateShort, formatDateTimeParis } from "@/lib/utils"
+import { computeCroisement } from "@/lib/boond-sync"
 import AbsencesAdmin from "./AbsencesAdmin"
+import SyncBoondCard from "./SyncBoondCard"
 
 // Registre des personnes (ADMIN) — consultants et siège en LECTURE (la
 // synchro Boond du lot s4 alimentera ce registre ; d'ici là : import Excel).
@@ -43,12 +45,60 @@ export default async function AdminPersonnesPage() {
     )
     .sort((a, b) => a.start.localeCompare(b.start))
   const absencesEnCours = absences.filter((a) => a.start <= today && (!a.end || a.end >= today))
+  const rapproches = persons.filter((p) => p.boondId).length
 
   const kpis = [
     { label: "Consultants (présents)", value: presents.length, underline: "bg-jaune-doux" },
     { label: "Siège", value: siege.length, underline: "bg-rose" },
     { label: "Absences en cours", value: absencesEnCours.length, underline: "bg-gris-moyen" },
+    { label: "Rapprochés Boond", value: rapproches, underline: "bg-jaune-vif" },
   ]
+
+  // Dernier passage de synchro + croisement de contrôle Boond ↔ missions
+  const lastRunRow = await prisma.syncRun.findFirst({
+    where: { kind: "BOOND" },
+    orderBy: { startedAt: "desc" },
+  })
+  const lastReport = (lastRunRow?.report ?? null) as { created?: number; updated?: number; errors?: string[] } | null
+  const lastRun = lastRunRow
+    ? {
+        date: formatDateTimeParis(lastRunRow.startedAt),
+        dryRun: lastRunRow.dryRun,
+        ok: lastRunRow.ok,
+        created: lastReport?.created ?? 0,
+        updated: lastReport?.updated ?? 0,
+        errors: lastReport?.errors?.length ?? 0,
+      }
+    : null
+  const boondConfigured = Boolean(
+    process.env.BOOND_USER_TOKEN && process.env.BOOND_CLIENT_TOKEN && process.env.BOOND_CLIENT_KEY
+  )
+
+  const missionsAll = await prisma.mission.findMany({
+    select: { personId: true, client: true, startDate: true, endDate: true },
+  })
+  const croisement = computeCroisement(
+    consultants.map((p) => ({
+      id: p.id,
+      name: p.name,
+      grade: p.grade,
+      kind: p.kind,
+      boondState: p.boondState,
+      arrival: toIsoDate(p.arrivalDate),
+      departure: p.departureDate ? toIsoDate(p.departureDate) : null,
+    })),
+    missionsAll.map((m) => ({
+      personId: m.personId,
+      client: m.client,
+      start: toIsoDate(m.startDate),
+      end: toIsoDate(m.endDate),
+    })),
+    today
+  )
+  const lastSyncAt = persons.reduce<Date | null>(
+    (acc, p) => (p.boondSyncedAt && (!acc || p.boondSyncedAt > acc) ? p.boondSyncedAt : acc),
+    null
+  )
 
   const dateCell = (d: Date | null) => (d ? formatDateShort(toIsoDate(d)) : "—")
 
@@ -60,12 +110,12 @@ export default async function AdminPersonnesPage() {
           Personnes &amp; <span className="hl">absences</span>
         </h1>
         <p className="text-[13px] text-texte-2 mt-2">
-          Consultants et siège en lecture — ce registre sera alimenté par la synchro Boond (lot
-          s4) ; d&rsquo;ici là, source : import Excel. Les absences prolongées se gèrent ici.
+          Consultants et siège en lecture — registre alimenté par l&rsquo;import Excel puis la
+          synchro Boond quotidienne. Les absences prolongées se gèrent ici.
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3.5 mb-6 max-sm:grid-cols-1">
+      <div className="grid grid-cols-4 gap-3.5 mb-6 max-sm:grid-cols-2">
         {kpis.map((k) => (
           <div key={k.label} className="card px-5 py-4">
             <span className={`inline-block w-6 h-1 rounded-full mb-2.5 ${k.underline}`} aria-hidden="true" />
@@ -73,6 +123,51 @@ export default async function AdminPersonnesPage() {
             <div className="text-[11px] tracking-[0.1em] uppercase text-label mt-2">{k.label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mb-5">
+        <SyncBoondCard lastRun={lastRun} boondConfigured={boondConfigured} />
+      </div>
+
+      <div className="card px-6 py-6 mb-5">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="titre-section">Croisement Boond ↔ missions</h2>
+          <span className={`tag ${croisement.length ? "tag-err" : "tag-ok"}`}>
+            {croisement.length ? `${croisement.length} écart${croisement.length > 1 ? "s" : ""}` : "aucun écart"}
+          </span>
+        </div>
+        {lastSyncAt ? (
+          <>
+            <p className="text-[11.5px] text-label mt-1">
+              {`États Boond relevés au dernier passage (${formatDateTimeParis(lastSyncAt)}) confrontés aux missions saisies, au ${formatDateShort(today)}.`}
+            </p>
+            {croisement.length > 0 && (
+              <div className="divide-y divide-fond mt-3">
+                {croisement.map((c) => (
+                  <div key={c.personId} className="py-2.5 grid grid-cols-12 gap-2 items-baseline text-[13px]">
+                    <div className="col-span-3 font-bold text-anthracite truncate">
+                      {c.name}
+                      <span className="text-[10.5px] text-label font-normal ml-2">{c.grade}</span>
+                    </div>
+                    <div className="col-span-3">
+                      <span className="tag tag-neutre">
+                        Boond : {c.boondState === "3" ? "en mission" : "intercontrat"}
+                      </span>
+                    </div>
+                    <div className="col-span-3">
+                      <span className="tag tag-rose">App : {c.appStatus}</span>
+                    </div>
+                    <div className="col-span-3 text-[11.5px] text-texte-2">{c.detail}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-[12.5px] text-texte-2 mt-2">
+            Disponible après la première synchronisation (les états Boond seront alors relevés).
+          </p>
+        )}
       </div>
 
       <div className="mb-5">
