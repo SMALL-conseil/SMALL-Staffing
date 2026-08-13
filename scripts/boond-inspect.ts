@@ -1,14 +1,61 @@
 // ============================================================
 //  Relevé du tenant Boond — À LANCER EN LOCAL au premier branchement :
 //      npx tsx scripts/boond-inspect.ts
-//  (secrets BOOND_* dans .env). Affiche les clés d'attributs réellement
-//  exposées, les histogrammes state/typeOf et un échantillon anonyme, pour
-//  FIGER les variables BOOND_TITLE_FIELD / BOOND_ARRIVAL_FIELD /
-//  BOOND_DEPARTURE_FIELD / BOOND_ACTIVE_STATES / BOOND_INDEP_TYPEOF.
+//  (secrets BOOND_* dans .env). Affiche :
+//   1. les clés d'attributs des RESSOURCES (personnes), histogrammes
+//      state/typeOf, titres bruts — pour figer BOOND_TITLE_FIELD /
+//      ARRIVAL / DEPARTURE / ACTIVE_STATES / INDEP_TYPEOF ;
+//   2. un SONDAGE des endpoints « jours de staffing » (livraisons,
+//      positionnements, projets, CRA) : statut HTTP, volumétrie, clés
+//      d'attributs, échantillon — pour cadrer la synchro des jours (v2).
 //  Aucune écriture en base, aucun secret affiché.
 // ============================================================
 import "dotenv/config"
-import { fetchResources, extractPerson, pickArrival, pickDeparture, pickTitle } from "../lib/boond"
+import {
+  buildJwt,
+  extractPerson,
+  fetchResources,
+  pickArrival,
+  pickDeparture,
+  pickTitle,
+} from "../lib/boond"
+
+const BASE = process.env.BOOND_BASE_URL || "https://ui.boondmanager.com/api"
+const JWT_HEADER = process.env.BOOND_JWT_HEADER || "X-Jwt-Client-BoondManager"
+
+/** Sonde en LECTURE un endpoint : statut, total, clés, mini-échantillon. */
+async function probe(path: string): Promise<void> {
+  const url = `${BASE}/${path}?page=1&maxResults=3&maxPerPage=3`
+  try {
+    const res = await fetch(url, {
+      headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      console.log(`  /${path} → HTTP ${res.status} (non exploitable en l'état)`)
+      return
+    }
+    const payload = await res.json()
+    const data: { id?: unknown; attributes?: Record<string, unknown>; relationships?: Record<string, unknown> }[] =
+      payload.data ?? []
+    const total = payload?.meta?.totals?.rows ?? "?"
+    console.log(`  /${path} → HTTP 200 · ${total} ligne(s) au total`)
+    if (data.length) {
+      const a = data[0].attributes ?? {}
+      console.log(`     clés d'attributs : ${Object.keys(a).join(", ") || "(aucune)"}`)
+      const rels = Object.keys(data[0].relationships ?? {})
+      if (rels.length) console.log(`     relations : ${rels.join(", ")}`)
+      const extrait = Object.fromEntries(
+        Object.entries(a)
+          .filter(([k]) => /date|state|rate|occupation|day|nb|number|title/i.test(k))
+          .slice(0, 8)
+      )
+      console.log(`     échantillon filtré : ${JSON.stringify(extrait)}`)
+    }
+  } catch (e) {
+    console.log(`  /${path} → erreur d'appel : ${e instanceof Error ? e.message : e}`)
+  }
+}
 
 async function main() {
   const { resources, pages } = await fetchResources()
@@ -47,7 +94,14 @@ async function main() {
     console.log(`  #${p.boondId} ${p.name} · titre=${p.title ?? "∅"} · state=${p.state} · typeOf=${p.typeOf}`)
     console.log(`     arrivée détectée=${pickArrival(a) ?? "∅"} · départ détecté=${pickDeparture(a) ?? "∅"}`)
   }
+
+  console.log("\n=== Sondage « jours de staffing » (lecture seule) ===")
+  for (const path of ["deliveries", "positionings", "projects", "timesreports", "times", "opportunities"]) {
+    await probe(path)
+  }
+
   console.log("\n→ figer les BOOND_* dans .env puis tester : bouton « Répétition (dry run) » de /admin/personnes.")
+  console.log("→ coller TOUTE cette sortie à Claude : le sondage décidera de la synchro des jours de staffing.")
 }
 
 main().catch((e) => {
