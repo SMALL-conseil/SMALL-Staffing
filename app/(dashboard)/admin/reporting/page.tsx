@@ -1,4 +1,5 @@
 import { auth } from "@/auth"
+import { Role } from "@/lib/types"
 import { redirect } from "next/navigation"
 
 // Emplacement standard du reporting (réservé ADMIN). À alimenter avec les KPIs
@@ -7,7 +8,7 @@ import { redirect } from "next/navigation"
 // /api/exports/reporting quand le besoin arrive.
 export default async function ReportingPage() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/accueil")
+  if (!session?.user || session.user.role !== Role.SIEGE) redirect("/accueil")
 
   return (
     <div className="px-11 py-9 max-w-[1080px] mx-auto max-md:px-5">

@@ -2,14 +2,14 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 import { validateAbsence } from "@/lib/staffing-admin"
-import { PersonKind } from "@/lib/types"
+import { Role, PersonKind } from "@/lib/types"
 
 // POST /api/absences — création d'une absence prolongée (Admin uniquement).
 // Portée par un CONSULTANT (comme le registre de l'Excel) : c'est la fenêtre
 // soustraite de ses jours staffables par le moteur.
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 

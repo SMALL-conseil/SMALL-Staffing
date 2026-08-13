@@ -44,7 +44,7 @@ export default function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const groups: { kicker: string; items: NavItem[] }[] = [
     { kicker: "Menu", items: NAV_MENU },
-    ...(user.role === "ADMIN" ? [{ kicker: "Registres & admin", items: NAV_ADMIN }] : []),
+    ...(user.role === "SIEGE" ? [{ kicker: "Registres & admin", items: NAV_ADMIN }] : []),
   ]
 
   return (

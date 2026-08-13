@@ -50,6 +50,11 @@ export function formatPct(x: number, decimals = 2): string {
   })} %`
 }
 
+/** Montant en euros : « 12 500 € » (décimales seulement si présentes). */
+export function formatEuros(x: number): string {
+  return `${x.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`
+}
+
 /** ETP en français : « 29,24 ». */
 export function formatEtp(x: number, decimals = 2): string {
   return x.toLocaleString("fr-FR", {

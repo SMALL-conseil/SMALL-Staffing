@@ -2,24 +2,24 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { formatDate } from "@/lib/utils"
-import { roleLabels } from "@/lib/types"
+import { Role, roleLabels } from "@/lib/types"
 import RoleSelect from "./RoleSelect"
 
 export default async function AdminUtilisateursPage() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/accueil")
+  if (!session?.user || session.user.role !== Role.SIEGE) redirect("/accueil")
 
   const users = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
   })
 
-  const admins = users.filter((u) => u.role === "ADMIN").length
+  const admins = users.filter((u) => u.role === Role.SIEGE).length
   const actifs = users.filter((u) => u.active).length
 
   const kpis = [
     { label: "Utilisateurs", value: users.length, underline: "bg-jaune-doux" },
     { label: "Actifs", value: actifs, underline: "bg-rose" },
-    { label: admins > 1 ? "Admins" : "Admin", value: admins, underline: "bg-gris-moyen" },
+    { label: admins > 1 ? "Comptes siège" : "Compte siège", value: admins, underline: "bg-gris-moyen" },
   ]
 
   return (

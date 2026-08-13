@@ -17,7 +17,7 @@ async function main() {
       email: "admin@small-conseil.fr",
       name: "Admin Démo",
       password,
-      role: "ADMIN",
+      role: "SIEGE",
     },
   })
 
@@ -28,7 +28,7 @@ async function main() {
       email: "membre@small-conseil.fr",
       name: "Membre Démo",
       password,
-      role: "MEMBER",
+      role: "CONSULTANT",
     },
   })
 

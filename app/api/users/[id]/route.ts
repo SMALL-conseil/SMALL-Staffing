@@ -10,7 +10,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 
@@ -24,9 +24,9 @@ export async function PATCH(
 
   // Anti-verrouillage : un admin ne peut pas se retirer son propre rôle
   // (sinon plus personne pour administrer si c'était le dernier).
-  if (id === session.user.id && role !== Role.ADMIN) {
+  if (id === session.user.id && role !== Role.SIEGE) {
     return NextResponse.json(
-      { error: "Impossible de retirer son propre rôle Admin" },
+      { error: "Impossible de retirer son propre rôle Siège" },
       { status: 400 }
     )
   }

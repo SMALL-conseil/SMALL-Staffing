@@ -2,11 +2,11 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 import { validateAbsence } from "@/lib/staffing-admin"
-import { PersonKind } from "@/lib/types"
+import { Role, PersonKind } from "@/lib/types"
 
 async function guard() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
   return null

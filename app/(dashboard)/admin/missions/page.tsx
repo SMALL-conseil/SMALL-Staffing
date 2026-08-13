@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
-import { PersonKind } from "@/lib/types"
+import { Role, PersonKind } from "@/lib/types"
 import { toIsoDate } from "@/lib/staffing-load"
 import { todayParis } from "@/lib/staffing-ui"
 import MissionsAdmin from "./MissionsAdmin"
@@ -9,7 +9,7 @@ import MissionsAdmin from "./MissionsAdmin"
 // Registre des missions (ADMIN) — la saisie qui remplace l'Excel.
 export default async function AdminMissionsPage() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/accueil")
+  if (!session?.user || session.user.role !== Role.SIEGE) redirect("/accueil")
 
   const [missions, consultants] = await Promise.all([
     prisma.mission.findMany({
@@ -24,6 +24,7 @@ export default async function AdminMissionsPage() {
   ])
 
   const today = todayParis()
+  // NB : fees (honoraires) n'est sérialisé QUE vers cette page, gate Siège.
   const rows = missions.map((m) => ({
     id: m.id,
     personId: m.personId,
@@ -34,6 +35,7 @@ export default async function AdminMissionsPage() {
     share: m.share,
     note: m.note,
     rank: m.rank,
+    fees: m.fees,
   }))
   const clients = [...new Set(rows.map((m) => m.client))].sort((a, b) => a.localeCompare(b, "fr"))
   const enCours = rows.filter((m) => m.start <= today && today <= m.end)

@@ -2,11 +2,12 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 import { validateMission } from "@/lib/staffing-admin"
-import { PersonKind } from "@/lib/types"
+import { todayParis } from "@/lib/staffing-ui"
+import { Role, PersonKind } from "@/lib/types"
 
 async function guard() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
   return null
@@ -24,6 +25,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const v = validateMission(body)
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  if (v.value.fees !== null && v.value.startDate.toISOString().slice(0, 10) > todayParis()) {
+    return NextResponse.json(
+      { error: "Les honoraires ne se renseignent que sur une mission commencée (en cours ou passée)" },
+      { status: 400 }
+    )
+  }
 
   const person = await prisma.person.findUnique({ where: { id: v.value.personId } })
   if (!person || person.kind !== PersonKind.CONSULTANT) {

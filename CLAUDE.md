@@ -30,7 +30,7 @@ livraison, et les pièges déjà rencontrés sur les outils précédents. Compl�
   hors bac à sable local). Vérification après chaque évolution :
   `npx prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma`
   → « No difference detected ».
-- Rôles : gates serveur dans chaque page/route admin (`session.user.role !== "ADMIN"` →
+- Rôles : gates serveur dans chaque page/route admin (`session.user.role !== Role.SIEGE` →
   redirect/403) ; navigation par rôle dans `components/Sidebar.tsx` ; anti-verrouillage
   sur son propre rôle Admin (`app/api/users/[id]`).
 - Heures « murales » Europe/Paris : le conteneur tourne en UTC — tout affichage d'heure
@@ -155,7 +155,20 @@ murales Paris, formats fr, palette clients) dans `lib/staffing-ui.ts`.
 Graphe = SVG maison (`components/TauxChart.tsx`) : trait plein jusqu'au mois
 courant, pointillé = prévisionnel.
 
-### Registres ADMIN (s3 — la saisie qui remplace l'Excel)
+### Rôles et honoraires (a3)
+
+Deux rôles applicatifs (`lib/types.ts`) : **CONSULTANT** (tout en consultation —
+tableau de bord, carte, IC, effectifs — ne voit JAMAIS les honoraires) et
+**SIEGE** (consultation + registres + honoraires + synchro Boond + utilisateurs).
+Migration a3 : anciens rôles renommés (ADMIN→SIEGE, MEMBER→CONSULTANT). NB :
+User.role et Person.kind emploient les mêmes mots pour deux notions distinctes.
+**Honoraires** : `Mission.fees` (€, nullable) — saisie/modif/suppression dans le
+registre des missions, missions COMMENCÉES uniquement (contrôle API), montants
+français acceptés (« 12 500,50 »), champ vidé = suppression. Règle de
+cloisonnement : fees n'est sérialisé QUE vers /admin/missions (gate Siège) —
+toute nouvelle sérialisation de Mission doit préserver cette règle.
+
+### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
 `/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la
 création, JAMAIS modifié ensuite — il fait foi pour la carte). `/admin/personnes` :

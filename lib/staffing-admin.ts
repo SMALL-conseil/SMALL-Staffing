@@ -9,6 +9,8 @@ export interface MissionValues {
   endDate: Date
   share: number
   note: string | null
+  /** Honoraires en euros (rôle SIEGE uniquement) — null = non renseignés / effacés. */
+  fees: number | null
 }
 
 export interface AbsenceValues {
@@ -25,6 +27,25 @@ function parseDay(v: unknown): Date | null {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
   const d = new Date(`${v}T00:00:00.000Z`)
   return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Montant en euros : accepte « 12500 », « 12 500,50 » (espaces, y compris
+ * insécables, virgule française), nombre. Vide/null → null (= effacement).
+ * Refuse (undefined en retour signale l'invalide) : négatif, non numérique,
+ * > 5 000 000 € (garde-fou de saisie).
+ */
+export function parseMontant(v: unknown): number | null | undefined {
+  if (v === null || v === undefined) return null
+  if (typeof v === "number") {
+    return Number.isFinite(v) && v >= 0 && v <= 5_000_000 ? v : undefined
+  }
+  if (typeof v !== "string") return undefined
+  const s = v.replace(/[\s  €]/g, "").replace(",", ".")
+  if (s === "") return null
+  const n = Number.parseFloat(s)
+  if (Number.isNaN(n) || !/^\d+(\.\d+)?$/.test(s)) return undefined
+  return n >= 0 && n <= 5_000_000 ? n : undefined
 }
 
 /** Part d'intervention : accepte « 1 », « 0.8 », « 0,8 » — bornée à (0 ; 1]. */
@@ -49,6 +70,7 @@ export function validateMission(raw: {
   endDate?: unknown
   share?: unknown
   note?: unknown
+  fees?: unknown
 }): Validation<MissionValues> {
   const personId = cleanText(raw.personId, 60)
   if (!personId) return { ok: false, error: "Consultant requis" }
@@ -63,9 +85,12 @@ export function validateMission(raw: {
   const share = parseShare(raw.share ?? 1)
   if (share === null)
     return { ok: false, error: "Part d'intervention invalide (entre 0 et 1, ex. 0,8)" }
+  const fees = parseMontant(raw.fees)
+  if (fees === undefined)
+    return { ok: false, error: "Honoraires invalides (montant en euros positif, ex. 12 500)" }
   return {
     ok: true,
-    value: { personId, client, startDate, endDate, share, note: cleanText(raw.note, 300) },
+    value: { personId, client, startDate, endDate, share, note: cleanText(raw.note, 300), fees },
   }
 }
 

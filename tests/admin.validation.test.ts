@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest"
-import { parseShare, validateAbsence, validateMission } from "@/lib/staffing-admin"
+import { parseMontant, parseShare, validateAbsence, validateMission } from "@/lib/staffing-admin"
+
+describe("parseMontant (honoraires en euros)", () => {
+  it("accepte les formats français (espaces, virgule) et les nombres", () => {
+    expect(parseMontant("12500")).toBe(12500)
+    expect(parseMontant("12 500,50")).toBe(12500.5)
+    expect(parseMontant(9800)).toBe(9800)
+  })
+  it("vide ou null = effacement (null)", () => {
+    expect(parseMontant("")).toBeNull()
+    expect(parseMontant("   ")).toBeNull()
+    expect(parseMontant(null)).toBeNull()
+    expect(parseMontant(undefined)).toBeNull()
+  })
+  it("refuse négatif, non numérique, montant démesuré", () => {
+    expect(parseMontant("-100")).toBeUndefined()
+    expect(parseMontant("douze mille")).toBeUndefined()
+    expect(parseMontant("9999999999")).toBeUndefined()
+  })
+})
 
 describe("parseShare", () => {
   it("accepte 1, 0.8 et la virgule française 0,8", () => {
@@ -42,6 +61,13 @@ describe("validateMission", () => {
   it("refuse client vide et date invalide", () => {
     expect(validateMission({ ...base, client: "  " }).ok).toBe(false)
     expect(validateMission({ ...base, endDate: "30/06/2026" }).ok).toBe(false)
+  })
+  it("honoraires : absents → null, montant fr accepté, invalide refusé", () => {
+    const sans = validateMission(base)
+    expect(sans.ok && sans.value.fees).toBeNull()
+    const avec = validateMission({ ...base, fees: "12 500,50" })
+    expect(avec.ok && avec.value.fees).toBe(12500.5)
+    expect(validateMission({ ...base, fees: "-5" }).ok).toBe(false)
   })
 })
 

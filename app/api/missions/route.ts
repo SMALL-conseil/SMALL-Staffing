@@ -2,15 +2,16 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 import { validateMission } from "@/lib/staffing-admin"
-import { PersonKind } from "@/lib/types"
+import { todayParis } from "@/lib/staffing-ui"
+import { Role, PersonKind } from "@/lib/types"
 
-// POST /api/missions — création d'une mission (Admin uniquement).
+// POST /api/missions — création d'une mission (rôle Siège uniquement).
 // Le rank (ordre de saisie) est attribué automatiquement : il fait foi pour
 // la carte de staffing (1re mission chevauchant le mois), comme l'ordre du
-// registre de l'Excel.
+// registre de l'Excel. Honoraires : missions commencées uniquement.
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 
@@ -19,6 +20,12 @@ export async function POST(req: NextRequest) {
 
   const v = validateMission(body)
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+  if (v.value.fees !== null && v.value.startDate.toISOString().slice(0, 10) > todayParis()) {
+    return NextResponse.json(
+      { error: "Les honoraires ne se renseignent que sur une mission commencée (en cours ou passée)" },
+      { status: 400 }
+    )
+  }
 
   const person = await prisma.person.findUnique({ where: { id: v.value.personId } })
   if (!person || person.kind !== PersonKind.CONSULTANT) {

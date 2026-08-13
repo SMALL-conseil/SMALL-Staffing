@@ -7,7 +7,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Pencil, Plus, Trash2, X } from "lucide-react"
 import { formatDateShort } from "@/lib/utils"
-import { formatPct, todayParis } from "@/lib/staffing-ui"
+import { formatEuros, formatPct, todayParis } from "@/lib/staffing-ui"
 
 export interface MissionRow {
   id: string
@@ -19,6 +19,8 @@ export interface MissionRow {
   share: number
   note: string | null
   rank: number
+  /** Honoraires (€) — cette page n'est servie qu'au rôle Siège. */
+  fees: number | null
 }
 
 export interface ConsultantOption {
@@ -40,9 +42,18 @@ interface FormState {
   endDate: string
   share: string
   note: string
+  fees: string
 }
 
-const EMPTY: FormState = { personId: "", client: "", startDate: "", endDate: "", share: "1", note: "" }
+const EMPTY: FormState = {
+  personId: "",
+  client: "",
+  startDate: "",
+  endDate: "",
+  share: "1",
+  note: "",
+  fees: "",
+}
 
 type StatutFiltre = "toutes" | "en_cours" | "a_venir" | "terminees"
 
@@ -92,6 +103,7 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
       endDate: m.end,
       share: String(m.share).replace(".", ","),
       note: m.note ?? "",
+      fees: m.fees != null ? String(m.fees).replace(".", ",") : "",
     })
     setEditing(m.id)
     setError(null)
@@ -275,6 +287,28 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
                 className="field-input"
               />
             </div>
+            <div>
+              <label className="field-label" htmlFor="m-fees">Honoraires (€) — rôle siège</label>
+              <input
+                id="m-fees"
+                value={form.fees}
+                onChange={(e) => setForm({ ...form, fees: e.target.value })}
+                className="field-input"
+                placeholder="ex. 12 500"
+                inputMode="decimal"
+                disabled={!!form.startDate && form.startDate > today}
+                title={
+                  form.startDate && form.startDate > today
+                    ? "Mission non commencée — honoraires à renseigner une fois la mission démarrée"
+                    : "Vider le champ pour supprimer les honoraires"
+                }
+              />
+              <p className="text-[10.5px] text-label mt-1">
+                {form.startDate && form.startDate > today
+                  ? "Mission non commencée : saisie possible dès son démarrage."
+                  : "Vider le champ = supprimer le montant."}
+              </p>
+            </div>
           </div>
           {error && <p className="text-[12.5px] text-err mt-3">{error}</p>}
           <div className="flex gap-2.5 mt-4">
@@ -293,9 +327,10 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
             <div className="col-span-3">Consultant</div>
             <div className="col-span-2">Client</div>
-            <div className="col-span-2">Début</div>
-            <div className="col-span-2">Fin</div>
+            <div className="col-span-1">Début</div>
+            <div className="col-span-1">Fin</div>
             <div className="col-span-1 text-right">Part</div>
+            <div className="col-span-2 text-right">Honoraires</div>
             <div className="col-span-2 text-right">Actions</div>
           </div>
         </div>
@@ -309,10 +344,17 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
                   {s && <span className={`tag ml-2 ${s.cls}`}>{s.label}</span>}
                 </div>
                 <div className="col-span-2 text-texte truncate">{m.client}</div>
-                <div className="col-span-2 text-texte-2 text-[12px]">{formatDateShort(m.start)}</div>
-                <div className="col-span-2 text-texte-2 text-[12px]">{formatDateShort(m.end)}</div>
+                <div className="col-span-1 text-texte-2 text-[11px]">{formatDateShort(m.start)}</div>
+                <div className="col-span-1 text-texte-2 text-[11px]">{formatDateShort(m.end)}</div>
                 <div className="col-span-1 text-right text-texte whitespace-nowrap">
                   {formatPct(m.share, 0)}
+                </div>
+                <div className="col-span-2 text-right whitespace-nowrap">
+                  {m.fees != null ? (
+                    <span className="font-bold text-anthracite">{formatEuros(m.fees)}</span>
+                  ) : (
+                    <span className="text-gris-moyen">—</span>
+                  )}
                 </div>
                 <div className="col-span-2 flex justify-end gap-1.5">
                   <button

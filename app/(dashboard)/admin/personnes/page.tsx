@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
-import { PersonKind } from "@/lib/types"
+import { Role, PersonKind } from "@/lib/types"
 import { toIsoDate } from "@/lib/staffing-load"
 import { todayParis } from "@/lib/staffing-ui"
 import { formatDateShort, formatDateTimeParis } from "@/lib/utils"
@@ -14,7 +14,7 @@ import SyncBoondCard from "./SyncBoondCard"
 // Les absences prolongées, elles, se gèrent ici (CRUD).
 export default async function AdminPersonnesPage() {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/accueil")
+  if (!session?.user || session.user.role !== Role.SIEGE) redirect("/accueil")
 
   const persons = await prisma.person.findMany({
     where: { active: true },

@@ -1,15 +1,19 @@
 // Rôles applicatifs — pseudo-enum TypeScript (les colonnes restent String côté
-// Prisma, convention du framework SMALL). Étendre ici en ajoutant des rôles,
-// puis adapter components/Sidebar.tsx (navByRole) et les gates des pages admin.
+// Prisma, convention du framework SMALL).
+// CONSULTANT : tout en CONSULTATION (tableau de bord, carte, IC, effectifs) —
+//   ne voit JAMAIS les honoraires. SIEGE : consultation + registres (missions,
+//   absences, personnes), honoraires, synchro Boond, gestion des utilisateurs.
+// NB : User.role (compte applicatif) et Person.kind (registre de l'effectif)
+// utilisent les mêmes mots mais sont deux notions distinctes.
 export const Role = {
-  MEMBER: "MEMBER",
-  ADMIN: "ADMIN",
+  CONSULTANT: "CONSULTANT",
+  SIEGE: "SIEGE",
 } as const
 export type Role = (typeof Role)[keyof typeof Role]
 
 export const roleLabels: Record<string, string> = {
-  MEMBER: "Membre",
-  ADMIN: "Admin",
+  CONSULTANT: "Consultant",
+  SIEGE: "Siège",
 }
 
 // ------------------------------------------------------------

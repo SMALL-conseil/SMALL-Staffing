@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Role } from "@/lib/types"
 import { auth } from "@/auth"
 import { syncBoond } from "@/lib/boond-sync"
 
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== Role.SIEGE) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
   const body = await req.json().catch(() => ({}))
