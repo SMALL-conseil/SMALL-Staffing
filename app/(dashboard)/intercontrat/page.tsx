@@ -75,13 +75,18 @@ export default async function IntercontratPage() {
           {sorties.length > 0 ? (
             <ul className="mt-4 space-y-2.5">
               {sorties.map((e) => (
-                <li key={e.personId} className="flex items-baseline justify-between gap-3 border-t border-ligne pt-2.5">
+                <li key={e.personId} className="flex items-baseline justify-between gap-3 border-t border-ligne pt-2.5 flex-wrap">
                   <div>
                     <span className="text-[12.5px] font-bold text-anthracite">{e.name}</span>
                     <span className="text-[10.5px] text-label ml-2">{e.grade}</span>
+                    {e.availableFrom && (
+                      <span className="tag tag-rose ml-2">
+                        absence jusqu&rsquo;au {formatDateShort(e.availableFrom)}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[12px] text-texte-2 whitespace-nowrap">
-                    {formatDateShort(e.date)}
+                    fin de mission {formatDateShort(e.date)}
                   </span>
                 </li>
               ))}
@@ -92,7 +97,8 @@ export default async function IntercontratPage() {
             </p>
           )}
           <p className="text-[11px] text-label mt-3">
-            Dernière mission se terminant entre aujourd&rsquo;hui et la fin du mois.
+            Dernière mission se terminant entre aujourd&rsquo;hui et la fin du mois — une absence
+            prolongée en cours repousse la disponibilité réelle.
           </p>
         </div>
 
@@ -106,13 +112,18 @@ export default async function IntercontratPage() {
           {prochain.length > 0 ? (
             <ul className="mt-4 space-y-2.5">
               {prochain.map((e) => (
-                <li key={e.personId} className="flex items-baseline justify-between gap-3 border-t border-ligne pt-2.5">
+                <li key={e.personId} className="flex items-baseline justify-between gap-3 border-t border-ligne pt-2.5 flex-wrap">
                   <div>
                     <span className="text-[12.5px] font-bold text-anthracite">{e.name}</span>
                     <span className="text-[10.5px] text-label ml-2">{e.grade}</span>
                     <span className={`tag ml-2 ${e.type === "ARRIVEE" ? "tag-ok" : "tag-attente"}`}>
                       {e.type === "ARRIVEE" ? "arrivée" : "sortie de mission"}
                     </span>
+                    {e.availableFrom && (
+                      <span className="tag tag-rose ml-2">
+                        absence jusqu&rsquo;au {formatDateShort(e.availableFrom)}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[12px] text-texte-2 whitespace-nowrap">
                     {formatDateShort(e.date)}

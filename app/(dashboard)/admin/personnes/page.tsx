@@ -188,8 +188,8 @@ export default async function AdminPersonnesPage() {
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
             <div className="col-span-3">Nom</div>
             <div className="col-span-1">Grade</div>
-            <div className="col-span-2 text-right">Arrivée</div>
-            <div className="col-span-2 text-right">Départ</div>
+            <div className="col-span-2">Arrivée</div>
+            <div className="col-span-2">Départ</div>
             <div className="col-span-3">Manager</div>
             <div className="col-span-1 text-right">Missions</div>
           </div>
@@ -204,8 +204,8 @@ export default async function AdminPersonnesPage() {
                 )}
               </div>
               <div className="col-span-1 text-texte">{p.grade}</div>
-              <div className="col-span-2 text-right text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
-              <div className="col-span-2 text-right text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
               <div className="col-span-3 text-texte-2 truncate">{p.manager?.name ?? "—"}</div>
               <div className="col-span-1 text-right text-texte">{p._count.missions}</div>
             </div>
@@ -222,8 +222,8 @@ export default async function AdminPersonnesPage() {
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
             <div className="col-span-4">Nom</div>
             <div className="col-span-4">Grade</div>
-            <div className="col-span-2 text-right">Arrivée</div>
-            <div className="col-span-2 text-right">Départ</div>
+            <div className="col-span-2">Arrivée</div>
+            <div className="col-span-2">Départ</div>
           </div>
         </div>
         <div className="divide-y divide-fond">
@@ -231,8 +231,8 @@ export default async function AdminPersonnesPage() {
             <div key={p.id} className="px-5 py-2 grid grid-cols-12 gap-2 items-center text-[12.5px]">
               <div className="col-span-4 font-bold text-anthracite truncate">{p.name}</div>
               <div className="col-span-4 text-texte truncate">{p.grade}</div>
-              <div className="col-span-2 text-right text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
-              <div className="col-span-2 text-right text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
             </div>
           ))}
         </div>

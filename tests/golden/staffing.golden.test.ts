@@ -202,14 +202,18 @@ describe("intercontrat et mouvements (au 10/08/2026)", () => {
     expect(icAtDate(people, missions, TODAY).map((e) => e.name)).toEqual(golden.icADate)
   })
 
-  it("sorties de mission d'ici fin août", () => {
-    const got = sortiesMoisCourant(people, missions, TODAY).map((e) => [e.name, e.date])
+  it("sorties de mission d'ici fin août (l'Excel affichait max(fin, dispo))", () => {
+    const got = sortiesMoisCourant(people, missions, TODAY).map((e) => [e.name, e.availableFrom ?? e.date])
     expect(got).toEqual(golden.sortiesMoisCourant)
+    // Clémence BUYSSE : mission finissant le 17/08 mais absente jusqu'au 31/12
+    const clemence = sortiesMoisCourant(people, missions, TODAY).find((e) => e.name === "Clémence BUYSSE")
+    expect(clemence?.date).toBe("2026-08-17")
+    expect(clemence?.availableFrom).toBe("2026-12-31")
   })
 
   it("mouvements de septembre (sorties + arrivées)", () => {
     const got = mouvementsMoisProchain(people, missions, TODAY)
-    expect(got.map((e) => [e.name, e.date])).toEqual(golden.sortiesArriveesMoisProchain)
+    expect(got.map((e) => [e.name, e.availableFrom ?? e.date])).toEqual(golden.sortiesArriveesMoisProchain)
     expect(got.find((e) => e.name === "Julien CAZABAT")?.type).toBe("SORTIE")
     expect(got.find((e) => e.name === "Anaïs MATHONNET")?.type).toBe("ARRIVEE")
   })

@@ -288,13 +288,13 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
               />
             </div>
             <div>
-              <label className="field-label" htmlFor="m-fees">Honoraires (€) — rôle siège</label>
+              <label className="field-label" htmlFor="m-fees">Honoraires (€ / jour) — rôle siège</label>
               <input
                 id="m-fees"
                 value={form.fees}
                 onChange={(e) => setForm({ ...form, fees: e.target.value })}
                 className="field-input"
-                placeholder="ex. 12 500"
+                placeholder="ex. 1 200"
                 inputMode="decimal"
                 disabled={!!form.startDate && form.startDate > today}
                 title={
@@ -351,7 +351,7 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
                 </div>
                 <div className="col-span-2 text-right whitespace-nowrap">
                   {m.fees != null ? (
-                    <span className="font-bold text-anthracite">{formatEuros(m.fees)}</span>
+                    <span className="font-bold text-anthracite">{formatEuros(m.fees)} / j</span>
                   ) : (
                     <span className="text-gris-moyen">—</span>
                   )}

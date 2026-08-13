@@ -462,8 +462,15 @@ export interface MovementEntry {
   grade: string
   /** SORTIE = fin de dernière mission ; ARRIVEE = arrivée/disponibilité sans mission. */
   type: "SORTIE" | "ARRIVEE"
-  /** Date affichée (fin de mission, ou disponibilité si postérieure — fidèle Excel). */
+  /** Date du mouvement : fin de la dernière mission (SORTIE) ou disponibilité (ARRIVEE). */
   date: IsoDate
+  /**
+   * Disponibilité réelle si POSTÉRIEURE à la fin de mission (absence prolongée
+   * en cours — ex. mission finissant en août, retour d'absence au 31/12) ;
+   * null sinon. L'Excel affichait max(des deux) : ce max vaut
+   * `availableFrom ?? date` (contrat golden préservé).
+   */
+  availableFrom: IsoDate | null
 }
 
 /**
@@ -482,12 +489,14 @@ export function sortiesMoisCourant(
   for (const p of icScope(people)) {
     const le = lastMissionEnd(p, missions)
     if (le !== null && le >= t && le <= eom) {
+      const avail = availabilityDay(p)
       out.push({
         personId: p.id,
         name: p.name,
         grade: p.grade,
         type: "SORTIE",
-        date: toIso(Math.max(availabilityDay(p), le)),
+        date: toIso(le),
+        availableFrom: avail > le ? toIso(avail) : null,
       })
     }
   }
@@ -511,17 +520,26 @@ export function mouvementsMoisProchain(
   for (const p of icScope(people)) {
     const le = lastMissionEnd(p, missions)
     if (le !== null && le > eomCurrent && le <= eomNext) {
+      const avail = availabilityDay(p)
       out.push({
         personId: p.id,
         name: p.name,
         grade: p.grade,
         type: "SORTIE",
-        date: toIso(Math.max(availabilityDay(p), le)),
+        date: toIso(le),
+        availableFrom: avail > le ? toIso(avail) : null,
       })
     } else if (le === null) {
       const avail = availabilityDay(p)
       if (avail > eomCurrent && avail <= eomNext) {
-        out.push({ personId: p.id, name: p.name, grade: p.grade, type: "ARRIVEE", date: toIso(avail) })
+        out.push({
+          personId: p.id,
+          name: p.name,
+          grade: p.grade,
+          type: "ARRIVEE",
+          date: toIso(avail),
+          availableFrom: null,
+        })
       }
     }
   }

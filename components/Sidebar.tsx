@@ -9,6 +9,7 @@ import {
   LogOut,
   CalendarDays,
   Hourglass,
+  TrendingUp,
   Briefcase,
   ClipboardList,
   KeyRound,
@@ -31,6 +32,7 @@ const NAV_MENU: NavItem[] = [
 ]
 
 const NAV_ADMIN: NavItem[] = [
+  { label: "Reporting", href: "/admin/reporting", icon: TrendingUp },
   { label: "Missions", href: "/admin/missions", icon: Briefcase },
   { label: "Personnes & absences", href: "/admin/personnes", icon: ClipboardList },
   { label: "Utilisateurs", href: "/admin/utilisateurs", icon: KeyRound },

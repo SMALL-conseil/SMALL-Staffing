@@ -162,11 +162,19 @@ tableau de bord, carte, IC, effectifs — ne voit JAMAIS les honoraires) et
 **SIEGE** (consultation + registres + honoraires + synchro Boond + utilisateurs).
 Migration a3 : anciens rôles renommés (ADMIN→SIEGE, MEMBER→CONSULTANT). NB :
 User.role et Person.kind emploient les mêmes mots pour deux notions distinctes.
-**Honoraires** : `Mission.fees` (€, nullable) — saisie/modif/suppression dans le
-registre des missions, missions COMMENCÉES uniquement (contrôle API), montants
-français acceptés (« 12 500,50 »), champ vidé = suppression. Règle de
-cloisonnement : fees n'est sérialisé QUE vers /admin/missions (gate Siège) —
-toute nouvelle sérialisation de Mission doit préserver cette règle.
+**Honoraires** : `Mission.fees` = TAUX JOURNALIER en € (« Honoraires € / jour »,
+décision du 11/08 — la formule CA du reporting en découle) — saisie/modif/
+suppression dans le registre des missions, missions COMMENCÉES uniquement
+(contrôle API), montants français acceptés (« 1 200,50 »), champ vidé =
+suppression. Règle de cloisonnement : fees n'est sérialisé QUE vers
+/admin/missions et /admin/reporting (gates Siège) — toute nouvelle
+sérialisation de Mission doit préserver cette règle.
+**Reporting** `/admin/reporting` (Siège) : donuts consultants par client
+(aujourd'hui) et CA par client — convention v1 (Boond facturation absent) :
+`fees × mois de mission sur l'année × 218/12`, année en cours arrêtée au mois
+courant, part non pondérée, missions sans honoraires exclues et signalées
+(`lib/reporting.ts`, testé). Couleurs de marque : `lib/client-brand.ts` ;
+logos : `public/logos/<slug>.png`.
 
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
