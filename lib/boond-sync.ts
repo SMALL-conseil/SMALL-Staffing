@@ -4,7 +4,13 @@
 //  initial par email puis par nom (même kind uniquement — une personne peut
 //  exister en consultant ET en siège, ex. Elvire HOUDEVILLE).
 //  INVARIANTS staffing (≠ Formation) :
-//   · le grade reçoit le Titre Boond BRUT (« SM 2 », « M 1 »… jamais aplati) ;
+//   · le grade reçoit le Titre Boond BRUT (« SM 2 », « M 1 »… jamais aplati) —
+//     MAIS un titre HORS GRILLE ne remplace jamais un grade connu (a10) : le
+//     Suivi_Effectif ne compte pas les grades hors grille, un titre libre saisi
+//     dans Boond ferait disparaître la personne des effectifs. Grade conservé,
+//     signalé, en attendant la correction du Titre dans Boond ;
+//   · sans titre : pas de création possible (kind indéductible), mais une
+//     fiche existante est quand même rapprochée par email (grade conservé) ;
 //   · une personne n'est JAMAIS supprimée ni masquée — l'historique des
 //     KPIs vit sur les dates ; un départ = departureDate, rien d'autre ;
 //   · les absents du flux sont seulement SIGNALÉS dans le rapport ;
@@ -47,6 +53,11 @@ export interface SyncReport {
   uniqueConflicts: string[]
   assumedConsultant: { name: string; title: string }[]
   unknownTitles: string[]
+  /** Titre Boond hors grille sur une fiche au grade connu → grade CONSERVÉ
+   *  (sinon la personne sortirait du Suivi_Effectif). À corriger dans Boond. */
+  gradesPreserved: string[]
+  /** Fiches suivies (boondId) dont le Titre Boond est vide — grade conservé. */
+  noTitleSynced: string[]
   kindConflicts: string[]
   departuresSet: { name: string; date: string }[]
   absentsDuFlux: string[]
@@ -59,7 +70,8 @@ function emptyReport(received: number, pages: number): SyncReport {
     received, pages, updated: 0, created: 0, adopted: 0, managersLinked: 0,
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
     arrivalsFromDetail: 0, uniqueConflicts: [],
-    assumedConsultant: [], unknownTitles: [], kindConflicts: [], departuresSet: [],
+    assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
+    kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
 }
@@ -112,10 +124,33 @@ export async function runBoondSync(
       let adopted = false
 
       if (!person) {
+        // Sans titre : impossible de déduire le kind (donc de créer), mais un
+        // email correspondant suffit à rapprocher une fiche existante — email
+        // unique en base, donc sans ambiguïté. Grade conservé (pas de titre) ;
+        // boondId, état, dates et manager suivent normalement.
+        if (!p.title) {
+          const byEmail = p.email ? await db.person.findUnique({ where: { email: p.email } }) : null
+          if (byEmail && !byEmail.boondId) {
+            person = byEmail
+            adopted = true
+          } else {
+            if (byEmail?.boondId) {
+              report.uniqueConflicts.push(
+                `${p.name} : email ${p.email} déjà rattaché à un autre boondId — non rapproché`
+              )
+            }
+            report.skippedNoTitle.push(p.name)
+            continue
+          }
+        }
+      }
+
+      if (!person) {
         // Rapprochement initial (import Excel sans boondId) — même kind UNIQUEMENT.
-        if (!p.title) { report.skippedNoTitle.push(p.name); continue }
-        const { kind, assumed } = kindFromTitle(p.title)
-        if (assumed) report.assumedConsultant.push({ name: p.name, title: p.title })
+        const title = p.title
+        if (!title) continue // jamais atteint : le cas « sans titre » est traité ci-dessus
+        const { kind, assumed } = kindFromTitle(title)
+        if (assumed) report.assumedConsultant.push({ name: p.name, title })
 
         const candidates = await db.person.findMany({ where: { kind, boondId: null } })
         person =
@@ -131,7 +166,7 @@ export async function runBoondSync(
           )
           if (crossHit) {
             report.kindConflicts.push(
-              `${p.name} (titre « ${p.title} », kind déduit ${kind}) ressemble à ${crossHit.name} (${crossHit.kind}) — non modifié, à rapprocher manuellement`
+              `${p.name} (titre « ${title} », kind déduit ${kind}) ressemble à ${crossHit.name} (${crossHit.kind}) — non modifié, à rapprocher manuellement`
             )
             continue
           }
@@ -177,7 +212,7 @@ export async function runBoondSync(
               name: p.name,
               email: createEmail,
               kind,
-              grade: p.title,
+              grade: title,
               arrivalDate: day(arrival),
               departureDate: p.departure ? day(p.departure) : null,
               boondId: p.boondId,
@@ -186,10 +221,10 @@ export async function runBoondSync(
             },
           })
           if (p.departure) report.departuresSet.push({ name: p.name, date: p.departure })
-          if (!(CONSULTANT_GRADES as readonly string[]).includes(p.title) &&
-              !(SIEGE_GRADES as readonly string[]).includes(p.title) &&
-              !report.unknownTitles.includes(p.title)) {
-            report.unknownTitles.push(p.title)
+          if (!(CONSULTANT_GRADES as readonly string[]).includes(title) &&
+              !(SIEGE_GRADES as readonly string[]).includes(title) &&
+              !report.unknownTitles.includes(title)) {
+            report.unknownTitles.push(title)
           }
           report.created++
           seen.add(p.boondId)
@@ -223,12 +258,26 @@ export async function runBoondSync(
         }
       }
       if (p.title) {
-        data.grade = p.title
+        // Garde-fou grade (a10) : un grade hors grille sort la personne du
+        // Suivi_Effectif. On ne remplace donc un grade CONNU (de la grille du
+        // kind) que par un autre grade connu ; un titre libre saisi dans Boond
+        // est signalé et n'écrase rien, en attendant sa correction dans Boond.
+        const grid: readonly string[] =
+          person.kind === PersonKind.SIEGE ? SIEGE_GRADES : CONSULTANT_GRADES
+        if (grid.includes(p.title) || !grid.includes(person.grade)) {
+          data.grade = p.title
+        } else {
+          report.gradesPreserved.push(
+            `${p.name} : titre Boond « ${p.title} » hors grille — grade « ${person.grade} » conservé`
+          )
+        }
         if (!(CONSULTANT_GRADES as readonly string[]).includes(p.title) &&
             !(SIEGE_GRADES as readonly string[]).includes(p.title) &&
             !report.unknownTitles.includes(p.title)) {
           report.unknownTitles.push(p.title)
         }
+      } else {
+        report.noTitleSynced.push(p.name)
       }
       if (p.arrival) data.arrivalDate = day(p.arrival)
       if (p.departure) {

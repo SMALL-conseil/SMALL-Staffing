@@ -203,7 +203,12 @@ missions ne sont JAMAIS touchées. Rapprochement : boondId → email → nom, m�
 kind uniquement (conflits consultant/siège signalés, non modifiés). Kind d'un
 nouveau : titre consultant fin → CONSULTANT, titre siège → SIEGE, inconnu →
 CONSULTANT supposé (signalé). Sans date d'arrivée : non créé (le moteur en
-dépend). Route `/api/boond/sync` : GET x-cron-secret (cron VPS 06h10,
+dépend). **Garde-fou grade (a10)** : un titre Boond HORS GRILLE (texte libre)
+ne remplace jamais un grade connu — grade conservé + signalé « à corriger dans
+Boond » (un grade hors grille sortirait la personne du Suivi_Effectif) ; sans
+titre : pas de création, mais rapprochement par email quand même (grade
+conservé, fiche suivie). Les deux signalements restent au rapport tant que le
+Titre Boond n'est pas corrigé, puis tout converge sans geste côté app. Route `/api/boond/sync` : GET x-cron-secret (cron VPS 06h10,
 `deploy/cron/crontab.txt`) ou POST session ADMIN (boutons de /admin/personnes,
 dry run par rollback de transaction). Rapport JSON en base (SyncRun) + états
 Boond relevés sur Person (boondState) → croisement de contrôle (2=IC vs

@@ -78,13 +78,12 @@ export default function DonutChart({
     return <p className="text-[13px] text-texte-2">Aucune donnée à représenter.</p>
   }
 
-  let angle = 0
+  // Sommes cumulées SANS réassignation pendant le rendu (règle React Compiler).
+  const cumul = data.reduce<number[]>((acc, d) => [...acc, (acc[acc.length - 1] ?? 0) + d.value], [])
   const slices = data.map((d, i) => {
-    const start = angle
-    const sweep = (d.value / total) * Math.PI * 2
-    angle += sweep
-    const mid = start + sweep / 2
-    return { ...d, i, start, end: angle, mid, pct: d.value / total }
+    const start = ((cumul[i - 1] ?? 0) / total) * Math.PI * 2
+    const end = (cumul[i] / total) * Math.PI * 2
+    return { ...d, i, start, end, mid: (start + end) / 2, pct: d.value / total }
   })
 
   return (

@@ -119,8 +119,10 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
                 · {report.updated} mis à jour · {report.adopted} rapproché(s) (boondId adopté) ·{" "}
                 {report.managersLinked} lien(s) manager · {report.nonRapproches} sans boondId en base
               </p>
-              {liste("Titres hors grilles (grade conservé BRUT)", report.unknownTitles ?? [])}
-              {liste("Sans titre — ignorés", report.skippedNoTitle ?? [])}
+              {liste("Titres Boond hors grilles (à corriger dans Boond)", report.unknownTitles ?? [])}
+              {liste("Grade conservé (titre Boond hors grille)", report.gradesPreserved ?? [])}
+              {liste("Sans titre dans Boond — suivis, grade conservé", report.noTitleSynced ?? [])}
+              {liste("Sans titre — non rapprochés, ignorés", report.skippedNoTitle ?? [])}
               {liste("Sans date d'arrivée — non créés", report.skippedNoArrival ?? [])}
               {liste("Kind supposé consultant (titre inconnu)", (report.assumedConsultant ?? []).map((a) => `${a.name} (${a.title})`))}
               {liste("Conflits consultant/siège — non modifiés", report.kindConflicts ?? [])}

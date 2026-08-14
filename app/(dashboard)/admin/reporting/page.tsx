@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Role } from "@/lib/types"
 import { toIsoDate } from "@/lib/staffing-load"
-import { formatEuros, todayParis } from "@/lib/staffing-ui"
+import { todayParis } from "@/lib/staffing-ui"
 import {
   caParClient,
   consultantsParClient,

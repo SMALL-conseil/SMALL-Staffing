@@ -122,7 +122,7 @@ describe("runBoondSync (intégration, rollback)", () => {
     })
   })
 
-  it("sans date d'arrivée → non créé ; sans titre → ignoré", async () => {
+  it("sans date d'arrivée → non créé ; sans titre ni email connu → ignoré", async () => {
     if (!dbOk) return
     await withRollback(async (tx) => {
       const r = await runBoondSync(
@@ -136,6 +136,68 @@ describe("runBoondSync (intégration, rollback)", () => {
       expect(r.skippedNoArrival).toEqual(["TEST BOOND SansDate"])
       expect(r.skippedNoTitle).toEqual(["TEST BOOND SansTitre"])
       expect(r.created).toBe(0)
+    })
+  })
+
+  it("sans titre MAIS email connu → rapproché quand même, grade conservé (a10)", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      // Cas Mathis SARRAZIN / Alice TRENQUIER : Titre vide dans Boond, mais la
+      // fiche importée de l'Excel porte l'email — on la suit sans toucher au grade.
+      await tx.person.create({
+        data: {
+          name: "TEST BOOND Mathis", email: "test.boond.mathis@small-conseil.com",
+          kind: "CONSULTANT", grade: "CS 1", arrivalDate: new Date("2026-06-01T00:00:00Z"),
+        },
+      })
+      const r = await runBoondSync(
+        tx,
+        [bp({ boondId: "test-nt", name: "TEST BOOND Mathis", title: null, email: "test.boond.mathis@small-conseil.com" })],
+        1
+      )
+      expect(r.adopted).toBe(1)
+      expect(r.updated).toBe(1)
+      expect(r.noTitleSynced).toEqual(["TEST BOOND Mathis"])
+      expect(r.skippedNoTitle).toEqual([])
+      const p = await tx.person.findUnique({ where: { boondId: "test-nt" } })
+      expect(p?.grade).toBe("CS 1") // intact
+      expect(p?.boondState).toBe("3") // mais suivi
+    })
+  })
+
+  it("titre hors grille : ne remplace JAMAIS un grade connu (a10) — un vrai grade passe", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      // Cas Louis-Pierre KAUFFMAN : « Consultant » (texte libre Boond) ne doit
+      // pas écraser « C » — sinon il sort du Suivi_Effectif.
+      await tx.person.create({
+        data: {
+          name: "TEST BOOND LP", kind: "CONSULTANT", grade: "C", boondId: "test-lp",
+          arrivalDate: new Date("2026-04-07T00:00:00Z"),
+        },
+      })
+      const r1 = await runBoondSync(tx, [bp({ boondId: "test-lp", name: "TEST BOOND LP", title: "Consultant" })], 1)
+      expect(r1.gradesPreserved).toHaveLength(1)
+      expect(r1.gradesPreserved[0]).toContain("« Consultant » hors grille")
+      expect(r1.unknownTitles).toContain("Consultant")
+      expect((await tx.person.findUnique({ where: { boondId: "test-lp" } }))?.grade).toBe("C")
+
+      // Une promotion vers un grade DE LA GRILLE passe toujours.
+      const r2 = await runBoondSync(tx, [bp({ boondId: "test-lp", name: "TEST BOOND LP", title: "CS 1" })], 1)
+      expect(r2.gradesPreserved).toHaveLength(0)
+      expect((await tx.person.findUnique({ where: { boondId: "test-lp" } }))?.grade).toBe("CS 1")
+
+      // Un grade déjà hors grille (ex. « DG SMALL Bordeaux ») n'est pas protégé :
+      // le titre Boond, même libre, fait foi (rien de valide à préserver).
+      await tx.person.create({
+        data: {
+          name: "TEST BOOND DG", kind: "SIEGE", grade: "DG TEST Bordeaux", boondId: "test-dg",
+          arrivalDate: new Date("2025-10-01T00:00:00Z"),
+        },
+      })
+      const r3 = await runBoondSync(tx, [bp({ boondId: "test-dg", name: "TEST BOOND DG", title: "DG TEST Sud-Ouest" })], 1)
+      expect(r3.gradesPreserved).toHaveLength(0)
+      expect((await tx.person.findUnique({ where: { boondId: "test-dg" } }))?.grade).toBe("DG TEST Sud-Ouest")
     })
   })
 
