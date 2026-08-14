@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest"
-import { extractPerson, normDate, pickEmail } from "@/lib/boond"
+import { extractPerson, normDate, normalizeTitle, pickEmail } from "@/lib/boond"
+
+describe("normalisation des titres Boond (relevé du tenant, 13/08/2026)", () => {
+  it("échelons fins conservés BRUTS", () => {
+    for (const t of ["SM 2", "M 1", "CS 2", "C", "Rookie"]) expect(normalizeTitle(t)).toBe(t)
+  })
+  it("indépendants et freelances → « Indép » (la sémantique du moteur en dépend)", () => {
+    expect(normalizeTitle("Consultant Indépendant")).toBe("Indép")
+    expect(normalizeTitle("Senior Program manager - Consultante indépendante")).toBe("Indép")
+    expect(normalizeTitle("Senior Product Designer | UX | UXR | UI Designer Freelance")).toBe("Indép")
+  })
+  it("variantes siège réalignées sur les grades de l'app", () => {
+    expect(normalizeTitle("Co-fondateur")).toBe("Fondateur")
+    expect(normalizeTitle("Co-fondatrice")).toBe("Fondateur")
+    expect(normalizeTitle("Chargée de mission auprès de la direction")).toBe(
+      "Chargée de missions transverses"
+    )
+  })
+  it("titre inconnu : brut, jamais inventé", () => {
+    expect(normalizeTitle("Project Manager Credit Risk")).toBe("Project Manager Credit Risk")
+  })
+})
 import { computeCroisement, kindFromTitle } from "@/lib/boond-sync"
 
 describe("extraction Boond (pure)", () => {

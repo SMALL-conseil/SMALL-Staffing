@@ -23,6 +23,32 @@ import {
 const BASE = process.env.BOOND_BASE_URL || "https://ui.boondmanager.com/api"
 const JWT_HEADER = process.env.BOOND_JWT_HEADER || "X-Jwt-Client-BoondManager"
 
+/** Sonde le DÉTAIL d'un objet : statut + clés d'attributs datées uniquement. */
+async function probeDetail(path: string): Promise<void> {
+  try {
+    const res = await fetch(`${BASE}/${path}`, {
+      headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      console.log(`  /${path} → HTTP ${res.status}`)
+      return
+    }
+    const payload = await res.json()
+    const a: Record<string, unknown> = payload?.data?.attributes ?? {}
+    const keys = Object.keys(a)
+    console.log(`  /${path} → HTTP 200 · ${keys.length} attribut(s)`)
+    const dateish = Object.fromEntries(
+      Object.entries(a).filter(
+        ([k, v]) => /date|entry|exit|hiring|contract|start|end/i.test(k) && v !== null && v !== ""
+      )
+    )
+    console.log(`     champs datés non vides : ${JSON.stringify(dateish) || "(aucun)"}`)
+  } catch (e) {
+    console.log(`  /${path} → erreur : ${e instanceof Error ? e.message : e}`)
+  }
+}
+
 /** Sonde en LECTURE un endpoint : statut, total, clés, mini-échantillon. */
 async function probe(path: string): Promise<void> {
   const url = `${BASE}/${path}?page=1&maxResults=3&maxPerPage=3`
@@ -98,6 +124,16 @@ async function main() {
   console.log("\n=== Sondage « jours de staffing » (lecture seule) ===")
   for (const path of ["deliveries", "positionings", "projects", "timesreports", "times", "opportunities"]) {
     await probe(path)
+  }
+
+  // Le listing /resources n'expose pas les dates d'arrivée/départ (relevé du
+  // 13/08) : on sonde le DÉTAIL d'une ressource pour voir si elles y sont.
+  if (resources.length) {
+    const id = resources[0].id
+    console.log(`\n=== Détail d'une ressource (#${id}) — recherche des dates contrat ===`)
+    for (const path of [`resources/${id}`, `resources/${id}/information`, `resources/${id}/administrative`]) {
+      await probeDetail(path)
+    }
   }
 
   console.log("\n→ figer les BOOND_* dans .env puis tester : bouton « Répétition (dry run) » de /admin/personnes.")

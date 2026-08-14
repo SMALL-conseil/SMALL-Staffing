@@ -108,6 +108,30 @@ export function pickTitle(a: Record<string, unknown>): string | null {
   return null
 }
 
+// Alias de titres relevés sur le tenant (inspect du 13/08/2026) : variantes
+// Boond → grades de l'app, pour que le Suivi_Effectif reste fidèle à l'Excel.
+// Toute variante NON listée reste BRUTE (et signalée « hors grilles »).
+const TITLE_ALIASES: Record<string, string> = {
+  "co-fondateur": "Fondateur",
+  "co-fondatrice": "Fondateur",
+  "fondateur": "Fondateur",
+  "fondatrice": "Fondateur",
+  "chargee de mission aupres de la direction": "Chargée de missions transverses",
+  "chargee de missions transverses": "Chargée de missions transverses",
+}
+
+/**
+ * Normalise un titre Boond vers le grade de l'app :
+ * · un titre contenant « indépendant(e) » ou « freelance » → grade « Indép »
+ *   (la sémantique Indép du moteur en dépend — ex. « Consultant Indépendant ») ;
+ * · les variantes siège connues sont réalignées (Co-fondateur → Fondateur…) ;
+ * · tout le reste passe BRUT (échelons fins inchangés : « SM 2 », « M 1 »…).
+ */
+export function normalizeTitle(title: string): string {
+  if (/ind[ée]pendant|freelance/i.test(title)) return "Indép"
+  return TITLE_ALIASES[normText(title)] ?? title
+}
+
 /** Normalise une valeur de date Boond (« 2026-01-12 », ISO long…) en « YYYY-MM-DD ». */
 export function normDate(v: unknown): string | null {
   if (v == null || v === "" || v === 0) return null
@@ -170,11 +194,12 @@ export function extractPerson(r: BoondResource): BoondPerson {
   const first = String((a.firstName as string) || "").trim()
   const last = String((a.lastName as string) || "").trim()
   const mgr = r.relationships?.[MANAGER_REL]?.data?.id
+  const rawTitle = pickTitle(a)
   return {
     boondId: String(r.id),
     name: `${first} ${last}`.trim(),
     email: pickEmail(a),
-    title: isIndepType(a) ? "Indép" : pickTitle(a),
+    title: isIndepType(a) ? "Indép" : rawTitle ? normalizeTitle(rawTitle) : null,
     state: a.state === undefined || a.state === null ? null : String(a.state),
     typeOf: a.typeOf === undefined || a.typeOf === null ? null : String(a.typeOf),
     arrival: pickArrival(a),
