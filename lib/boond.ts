@@ -67,7 +67,11 @@ export async function fetchResources(): Promise<{ resources: BoondResource[]; pa
   const out: BoondResource[] = []
   let page = 1
   while (page <= 100) {
-    const url = `${BASE}/resources?page=${page}&maxResults=100&maxPerPage=100`
+    // include=<relation manager> : sans lui, le listing expose la CLÉ de la
+    // relation mais pas son contenu (data) — relevé du 13/08 : mainManager
+    // présent sur 65/65 ressources mais 0 lien posé. Paramètre ignoré sans
+    // dommage si l'API ne le supporte pas.
+    const url = `${BASE}/resources?page=${page}&maxResults=100&maxPerPage=100&include=${encodeURIComponent(MANAGER_REL)}`
     const res = await fetch(url, { headers, cache: "no-store" })
     if (!res.ok) throw new Error(`Boond /resources HTTP ${res.status}`)
     const payload = await res.json()

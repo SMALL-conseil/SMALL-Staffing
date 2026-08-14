@@ -122,6 +122,9 @@ async function main() {
     const a = r.attributes ?? {}
     console.log(`  #${p.boondId} ${p.name} · titre=${p.title ?? "∅"} · state=${p.state} · typeOf=${p.typeOf}`)
     console.log(`     arrivée détectée=${pickArrival(a) ?? "∅"} · départ détecté=${pickDeparture(a) ?? "∅"}`)
+    console.log(
+      `     mainManager BRUT = ${JSON.stringify(r.relationships?.mainManager ?? null)} → managerBoondId détecté = ${p.managerBoondId ?? "∅"}`
+    )
   }
 
   console.log("\n=== Sondage « jours de staffing » (lecture seule) ===")
