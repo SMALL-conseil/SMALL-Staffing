@@ -64,6 +64,7 @@ model Person {
   updatedAt     DateTime      @updatedAt
   absences      LongAbsence[]
   missions      Mission[]
+  timeEntries   TimeEntry[]
 
   @@unique([name, kind])
   @@index([kind])
@@ -86,6 +87,38 @@ model LongAbsence {
 
 // Journal des synchronisations Boond — le dernier rapport s'affiche en admin.
 // report : JSON du SyncReport (lib/boond-sync.ts).
+// Jour de CRA Boond (1 ligne /times = 1 jour saisi par une personne) — a12.
+// Source de vérité : Boond. La synchro REMPLACE la fenêtre synchronisée
+// (suppressions et corrections de CRA suivies) ; aucune saisie côté app.
+// Le CA réel du reporting = jours « production » × honoraires €/jour de la
+// mission de l'app couvrant la date (client Boond en départage).
+model TimeEntry {
+  id             String   @id @default(cuid())
+  /// Identifiant de la ligne Boond (ex. « regular_123 ») — idempotence.
+  boondId        String   @unique
+  personId       String
+  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  /// 1 = journée, 0,5 = demi-journée.
+  duration       Float
+  category       String
+  /// activityType Boond : production / absence / internal…
+  activityType   String
+  /// Libellé du type d'unité (« Mission », « Congés »…).
+  workUnit       String
+  projectBoondId String?
+  projectName    String?
+  /// Nom de la company Boond (le CLIENT) — sert au départage multi-missions.
+  clientName     String?
+  /// État de validation du CRA mensuel (timesReport.state).
+  craState       String?
+  craTerm        String?
+  syncedAt       DateTime
+
+  @@index([personId, date])
+  @@index([date])
+}
+
 model SyncRun {
   id         String    @id @default(cuid())
   kind       String    @default("BOOND")

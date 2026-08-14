@@ -170,11 +170,16 @@ suppression. Règle de cloisonnement : fees n'est sérialisé QUE vers
 /admin/missions et /admin/reporting (gates Siège) — toute nouvelle
 sérialisation de Mission doit préserver cette règle.
 **Reporting** `/admin/reporting` (Siège) : donuts consultants par client
-(aujourd'hui) et CA par client — convention v1 (Boond facturation absent) :
-`fees × mois de mission sur l'année × 218/12`, année en cours arrêtée au mois
-courant, part non pondérée, missions sans honoraires exclues et signalées
-(`lib/reporting.ts`, testé). Couleurs de marque : `lib/client-brand.ts` ;
-logos : `public/logos/<slug>.png`.
+(aujourd'hui) et CA par client. **CA réel (a12, décision du 14/08)** : dès que
+les jours de CRA sont synchronisés, les mois ÉCOULÉS de l'année affichée sont
+valorisés au RÉEL (`caParClientReel` : Σ jours « production » × fees €/jour de
+la mission de l'app couvrant la date — départage multi-missions par le client
+Boond de la ligne, sinon 1re mission par rank → passer les missions TRIÉES par
+rank), le mois courant reste à la convention `fees × mois × 218/12`, une année
+future est entièrement conventionnelle, une année passée entièrement réelle.
+Signaux : missions sans honoraires (exclues), jours de production sans mission
+dans l'app. Sans jours synchronisés : convention seule (comportement pré-a12).
+Couleurs de marque : `lib/client-brand.ts` ; logos : `public/logos/<slug>.png`.
 
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
@@ -214,6 +219,25 @@ dry run par rollback de transaction). Rapport JSON en base (SyncRun) + états
 Boond relevés sur Person (boondState) → croisement de contrôle (2=IC vs
 mission en cours, 3=en mission vs aucune). **Premier branchement** :
 `npx tsx scripts/boond-inspect.ts` pour figer les BOOND_* (.env.example).
+
+### Synchro des jours de CRA (a12 — quotidienne, TimeEntry)
+
+`lib/boond-times.ts` (client /times + extraction pure) et
+`lib/boond-times-sync.ts` (fenêtre, testé rollback). Relevé du 14/08 : 1 ligne
+/times = 1 jour ; la personne arrive par timesReport→resource ; le CLIENT par
+`include=resource,delivery,project` (project→company suivent dans `included`
+alors que /projects direct est 403 — leçon a8) ; AUCUN filtre de dates honoré
+mais `sort=startDate` fonctionne. Stratégie ≠ personnes : **remplacement par
+fenêtre** (pages descendantes jusqu'à aujourd'hui − BOOND_TIMES_LOOKBACK_DAYS,
+90 j ; table vide = pleine charge auto ~180 pages) — suppression + réinsertion
+dans UNE transaction (corrections ET suppressions de CRA suivies) ; les jours
+sont une RÉPLIQUE, les remplacer est légitime (contrairement aux personnes).
+Garde-fous : flux vide ou fenêtre irrésoluble → rien n'est touché ; erreur en
+cours de remplacement → transaction annulée (rapport conservé). Seules les
+lignes rattachables par boondId de Person sont gardées (reste compté au
+rapport). Route `/api/boond/sync-times` (GET cron 06h25 APRÈS les personnes,
+POST Siège — carte « Jours de CRA » de /admin/reporting, dry run par rollback).
+Journal SyncRun kind BOOND_TIMES.
 
 ### Import initial
 

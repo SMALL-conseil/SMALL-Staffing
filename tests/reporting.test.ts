@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
   caParClient,
+  caParClientReel,
   consultantsParClient,
   moisDeMission,
   replierAutres,
+  type ReportingJour,
   type ReportingMission,
 } from "@/lib/reporting"
 
@@ -74,6 +76,81 @@ describe("CA par client (convention 218 j/an)", () => {
     )
     expect(out.entries.map((e) => e.client)).toEqual(["CNP"])
     expect(out.sansHonoraires).toEqual([{ client: "FDJ", missions: 2 }])
+  })
+})
+
+describe("CA réel par client (a12 — jours CRA × honoraires)", () => {
+  const j = (over: Partial<ReportingJour>): ReportingJour => ({
+    personId: "p1",
+    date: "2026-03-10",
+    duration: 1,
+    clientName: null,
+    ...over,
+  })
+
+  it("année en cours : mois écoulés au réel, mois courant à la convention", () => {
+    // TODAY = 2026-08-11 → réel janv–juil, convention pour août seul.
+    const missions = [m({ client: "GROUPAMA", fees: 1000 })]
+    const jours = [
+      j({ date: "2026-03-10" }),
+      j({ date: "2026-03-11", duration: 0.5 }),
+      j({ date: "2026-08-03" }), // mois courant → IGNORÉ au réel (convention)
+    ]
+    const out = caParClientReel(missions, jours, 2026, TODAY)
+    expect(out.caReel).toBeCloseTo(1.5 * 1000, 5)
+    expect(out.caConvention).toBeCloseTo(1000 * 1 * (218 / 12), 5) // août seul
+    expect(out.total).toBeCloseTo(out.caReel + out.caConvention, 5)
+    expect(out.moisReelMax).toBe(7)
+    expect(out.entries).toHaveLength(1)
+    expect(out.entries[0].ca).toBeCloseTo(out.total, 5)
+  })
+
+  it("départage multi-missions par le client Boond, sinon 1re mission (rank)", () => {
+    const missions = [
+      m({ client: "GROUPAMA", fees: 1000 }), // 1re par rank
+      m({ client: "ACCOR", fees: 2000 }),
+    ]
+    const jours = [
+      j({ date: "2026-04-01", clientName: "Accor" }), // match insensible casse/accents
+      j({ date: "2026-04-02" }), // pas de client Boond → 1re mission
+    ]
+    const out = caParClientReel(missions, jours, 2026, TODAY)
+    expect(out.entries.find((e) => e.client === "ACCOR")?.ca).toBeCloseTo(
+      2000 * 1 + 2000 * 1 * (218 / 12), 5 // 1 jour réel + convention août
+    )
+    expect(out.entries.find((e) => e.client === "GROUPAMA")?.ca).toBeCloseTo(
+      1000 * 1 + 1000 * 1 * (218 / 12), 5
+    )
+  })
+
+  it("jour sans mission couvrante → compté « sans mission » ; mission sans fees → signalée", () => {
+    const missions = [m({ client: "FDJ", fees: null, start: "2026-01-01", end: "2026-06-30" })]
+    const jours = [
+      j({ date: "2026-02-02" }), // mission FDJ sans fees
+      j({ date: "2026-07-15", duration: 0.5 }), // aucune mission ne couvre
+    ]
+    const out = caParClientReel(missions, jours, 2026, TODAY)
+    expect(out.caReel).toBe(0)
+    expect(out.sansHonoraires).toEqual([{ client: "FDJ", missions: 1 }])
+    expect(out.joursSansMission).toBe(0.5)
+  })
+
+  it("année passée : entièrement réelle (aucune convention)", () => {
+    const missions = [m({ client: "CNP", fees: 900, start: "2025-01-01", end: "2025-12-31" })]
+    const jours = [j({ date: "2025-11-03" }), j({ date: "2025-12-01" })]
+    const out = caParClientReel(missions, jours, 2025, TODAY)
+    expect(out.caReel).toBeCloseTo(2 * 900, 5)
+    expect(out.caConvention).toBe(0)
+    expect(out.moisReelMax).toBe(12)
+  })
+
+  it("année future : entièrement conventionnelle (identique à caParClient)", () => {
+    const missions = [m({ client: "SUEZ", fees: 1200, start: "2027-01-01", end: "2027-03-31" })]
+    const out = caParClientReel(missions, [], 2027, TODAY)
+    const conv = caParClient(missions, 2027, TODAY)
+    expect(out.moisReelMax).toBe(0)
+    expect(out.total).toBeCloseTo(conv.total, 5)
+    expect(out.entries).toEqual(conv.entries)
   })
 })
 

@@ -8,3 +8,7 @@
 # --- Synchronisation Boond → registre des personnes (06h10, après la synchro Formation de 06h00) ---
 # Test sans écriture : ajouter ?dryRun=1
 10 6 * * *  curl -fsS -H "x-cron-secret: REMPLACER_PAR_CRON_SECRET" "https://staffing.small-conseil.com/api/boond/sync" >/dev/null
+
+# --- Synchronisation Boond → jours de CRA (06h25, APRÈS les personnes : les lignes se rattachent par boondId) ---
+# Premier passage = pleine charge (~2 min) ; ensuite fenêtre BOOND_TIMES_LOOKBACK_DAYS (90 j).
+25 6 * * *  curl -fsS --max-time 540 -H "x-cron-secret: REMPLACER_PAR_CRON_SECRET" "https://staffing.small-conseil.com/api/boond/sync-times" >/dev/null
