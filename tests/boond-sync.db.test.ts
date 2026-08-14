@@ -219,6 +219,34 @@ describe("runBoondSync (intégration, rollback)", () => {
     })
   })
 
+  it("conflit d'unicité d'email : signalé et contourné SANS avorter la transaction", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      // La fiche consultant d'Elvire (avant corrections.ts) porte déjà l'email
+      // que la synchro veut poser sur sa fiche siège → conflit à contourner.
+      await tx.person.create({
+        data: { name: "TEST BOOND Elvire C", kind: "CONSULTANT", grade: "C", email: "test.elvire@small-conseil.com", arrivalDate: new Date("2025-01-13T00:00:00Z") },
+      })
+      await tx.person.create({
+        data: { name: "TEST BOOND Elvire S", kind: "SIEGE", grade: "Chargée de missions transverses", arrivalDate: new Date("2025-01-13T00:00:00Z") },
+      })
+      const r = await runBoondSync(
+        tx,
+        [
+          bp({ boondId: "test-u1", name: "TEST BOOND Elvire S", title: "Chargée de missions transverses", email: "test.elvire@small-conseil.com" }),
+          bp({ boondId: "test-u2", name: "TEST BOOND Après", title: "C" }), // doit encore passer (pas d'abort)
+        ],
+        1
+      )
+      expect(r.uniqueConflicts).toHaveLength(1)
+      expect(r.errors).toEqual([])
+      expect(r.created).toBe(1) // la suite de la passe a survécu
+      const siege = await tx.person.findUnique({ where: { boondId: "test-u1" } })
+      expect(siege?.email).toBeNull() // email conservé (null), pas volé à l'autre fiche
+      expect(siege?.grade).toBe("Chargée de missions transverses")
+    })
+  })
+
   it("flux vide → rien n'est touché, erreur explicite", async () => {
     if (!dbOk) return
     await withRollback(async (tx) => {

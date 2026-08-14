@@ -41,6 +41,10 @@ export interface SyncReport {
   skippedNoArrival: string[]
   /** Arrivées lues dans le DÉTAIL Boond (seniorityDate) pour créer une personne. */
   arrivalsFromDetail: number
+  /** Conflits d'unicité (email ou nom déjà portés par une AUTRE fiche) — champ
+   *  non modifié, à arbitrer à la main. Vérifiés AVANT écriture : une violation
+   *  qui claquerait en base avorterait toute la transaction du dry run (25P02). */
+  uniqueConflicts: string[]
   assumedConsultant: { name: string; title: string }[]
   unknownTitles: string[]
   kindConflicts: string[]
@@ -54,7 +58,7 @@ function emptyReport(received: number, pages: number): SyncReport {
   return {
     received, pages, updated: 0, created: 0, adopted: 0, managersLinked: 0,
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
-    arrivalsFromDetail: 0,
+    arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
@@ -69,6 +73,18 @@ export function kindFromTitle(title: string): { kind: string; assumed: boolean }
 }
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
+
+/** L'email est-il déjà porté par une AUTRE fiche ? */
+async function emailTakenByOther(db: Db, email: string, selfId?: string): Promise<boolean> {
+  const holder = await db.person.findUnique({ where: { email } })
+  return !!holder && holder.id !== selfId
+}
+
+/** Le couple (name, kind) est-il déjà porté par une AUTRE fiche ? */
+async function nameTakenByOther(db: Db, name: string, kind: string, selfId?: string): Promise<boolean> {
+  const holder = await db.person.findUnique({ where: { name_kind: { name, kind } } })
+  return !!holder && holder.id !== selfId
+}
 
 export async function runBoondSync(
   db: Db,
@@ -143,10 +159,23 @@ export async function runBoondSync(
             }
           }
           if (!arrival) { report.skippedNoArrival.push(p.name); continue }
+          if (await nameTakenByOther(db, p.name, kind)) {
+            report.uniqueConflicts.push(
+              `${p.name} (${kind}) : nom déjà porté par une autre fiche — création refusée, à rapprocher manuellement`
+            )
+            continue
+          }
+          let createEmail = p.email
+          if (createEmail && (await emailTakenByOther(db, createEmail))) {
+            report.uniqueConflicts.push(
+              `${p.name} : email ${createEmail} déjà porté par une autre fiche — créé SANS email`
+            )
+            createEmail = null
+          }
           await db.person.create({
             data: {
               name: p.name,
-              email: p.email,
+              email: createEmail,
               kind,
               grade: p.title,
               arrivalDate: day(arrival),
@@ -168,14 +197,31 @@ export async function runBoondSync(
         }
       }
 
-      // Mise à jour (personne connue ou tout juste rapprochée)
+      // Mise à jour (personne connue ou tout juste rapprochée) — unicités
+      // vérifiées AVANT écriture (une violation avorterait le dry run).
       const data: Record<string, unknown> = {
         boondId: p.boondId,
         boondState: p.state,
         boondSyncedAt: now,
-        name: p.name,
       }
-      if (p.email) data.email = p.email
+      if (p.name !== person.name) {
+        if (await nameTakenByOther(db, p.name, person.kind, person.id)) {
+          report.uniqueConflicts.push(
+            `${person.name} : le nom Boond « ${p.name} » est déjà porté par une autre fiche ${person.kind} — nom conservé`
+          )
+        } else {
+          data.name = p.name
+        }
+      }
+      if (p.email && p.email !== person.email?.toLowerCase()) {
+        if (await emailTakenByOther(db, p.email, person.id)) {
+          report.uniqueConflicts.push(
+            `${p.name} : email ${p.email} déjà porté par une autre fiche — email conservé`
+          )
+        } else {
+          data.email = p.email
+        }
+      }
       if (p.title) {
         data.grade = p.title
         if (!(CONSULTANT_GRADES as readonly string[]).includes(p.title) &&

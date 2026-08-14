@@ -124,6 +124,7 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
               {liste("Sans date d'arrivée — non créés", report.skippedNoArrival ?? [])}
               {liste("Kind supposé consultant (titre inconnu)", (report.assumedConsultant ?? []).map((a) => `${a.name} (${a.title})`))}
               {liste("Conflits consultant/siège — non modifiés", report.kindConflicts ?? [])}
+              {liste("Conflits d'unicité (email/nom) — champ conservé", report.uniqueConflicts ?? [])}
               {liste("Départs posés", (report.departuresSet ?? []).map((d) => `${d.name} → ${d.date}`))}
               {liste("Inactifs Boond — ignorés", (report.skippedInactive ?? []).map((s) => `${s.name} (état ${s.state ?? "?"})`))}
               {liste("Présents en base, absents du flux (à vérifier)", report.absentsDuFlux ?? [])}
