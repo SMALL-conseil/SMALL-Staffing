@@ -236,8 +236,13 @@ Garde-fous : flux vide ou fenêtre irrésoluble → rien n'est touché ; erreur 
 cours de remplacement → transaction annulée (rapport conservé). Seules les
 lignes rattachables par boondId de Person sont gardées (reste compté au
 rapport). Route `/api/boond/sync-times` (GET cron 06h25 APRÈS les personnes,
-POST Siège — carte « Jours de CRA » de /admin/reporting, dry run par rollback).
-Journal SyncRun kind BOOND_TIMES.
+POST Siège — carte « Jours de CRA » de /admin/reporting, dry run par rollback ;
+`?full=1` / body `{full:true}` = reconstruction complète). Journal SyncRun kind
+BOOND_TIMES. ⚠️ Pleine charge en ordre NATUREL du tenant : paginer un tri par
+startDate (clé non unique) peut perdre/dupliquer des lignes aux frontières de
+pages — le tri desc ne sert qu'à l'arrêt anticipé de la fenêtre incrémentale.
+⚠️ SVG côté client : arrondir toute coordonnée calculée (Math.sin/cos) avant
+de la mettre en attribut — floats bruts = erreur d'hydratation (DonutChart, a13).
 
 ### Import initial
 

@@ -33,6 +33,11 @@ const INNER = 64
 const CX = SIZE / 2
 const CY = SIZE / 2
 
+// Coordonnée arrondie au centième : Math.sin/cos peuvent différer d'un ULP
+// entre le V8 du serveur et celui du navigateur — des floats bruts dans les
+// attributs SVG provoquent une erreur d'hydratation React (vu le 14/08).
+const px = (n: number) => Math.round(n * 100) / 100
+
 function arcPath(startAngle: number, endAngle: number): string {
   const large = endAngle - startAngle > Math.PI ? 1 : 0
   const x1 = CX + R * Math.sin(startAngle)
@@ -113,8 +118,8 @@ export default function DonutChart({
             .filter((s) => s.pct >= 0.08)
             .map((s) => {
               const r = R + 14
-              const x = CX + r * Math.sin(s.mid)
-              const y = CY - r * Math.cos(s.mid)
+              const x = px(CX + r * Math.sin(s.mid))
+              const y = px(CY - r * Math.cos(s.mid))
               return (
                 <text
                   key={`t${s.i}`}
@@ -134,8 +139,8 @@ export default function DonutChart({
             .filter((s) => s.i < logoSlots && s.logo && logoOk[s.logo] && s.pct >= 0.09)
             .map((s) => {
               const r = (R + INNER) / 2
-              const x = CX + r * Math.sin(s.mid)
-              const y = CY - r * Math.cos(s.mid)
+              const x = px(CX + r * Math.sin(s.mid))
+              const y = px(CY - r * Math.cos(s.mid))
               return (
                 <g key={`l${s.i}`}>
                   <circle cx={x} cy={y} r={15} fill="#ffffff" opacity={0.92} />

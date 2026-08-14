@@ -158,14 +158,15 @@ export async function runTimesSync(
   return report
 }
 
-/** Descend les pages /times (tri décroissant) jusqu'à la coupure. */
+/** Lit /times : pleine charge en ordre NATUREL (pagination stable), fenêtre
+ *  incrémentale en tri décroissant (arrêt dès que la coupure est dépassée). */
 export async function fetchTimesWindow(
   cutoffIso: string | null
 ): Promise<{ rows: BoondTimeRow[]; pages: number }> {
   const rows: BoondTimeRow[] = []
   let pages = 0
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const p = await fetchTimesPage(page, "desc")
+    const p = await fetchTimesPage(page, cutoffIso === null ? null : "desc")
     pages = page
     const extracted = extractTimeRows(p.rows, p.included)
     rows.push(...extracted)
@@ -187,14 +188,17 @@ class SyncAbort extends Error {
   constructor(public report: TimesSyncReport) { super("times-sync-abort") }
 }
 
-/** Point d'entrée : fetch + fenêtre + journal SyncRun (kind BOOND_TIMES). */
-export async function syncTimes(opts: { dryRun?: boolean; todayIso?: string } = {}): Promise<TimesSyncReport> {
+/** Point d'entrée : fetch + fenêtre + journal SyncRun (kind BOOND_TIMES).
+ *  `full` force une pleine charge (reconstruction) même si la table est pleine. */
+export async function syncTimes(
+  opts: { dryRun?: boolean; todayIso?: string; full?: boolean } = {}
+): Promise<TimesSyncReport> {
   const dryRun = opts.dryRun === true
   const startedAt = new Date()
   const todayIso = opts.todayIso ?? new Date().toISOString().slice(0, 10)
 
   const existing = await prisma.timeEntry.count()
-  const cutoffIso = existing === 0 ? null : isoDaysAgo(todayIso, LOOKBACK_DAYS)
+  const cutoffIso = opts.full === true || existing === 0 ? null : isoDaysAgo(todayIso, LOOKBACK_DAYS)
   const { rows, pages } = await fetchTimesWindow(cutoffIso)
 
   let report: TimesSyncReport

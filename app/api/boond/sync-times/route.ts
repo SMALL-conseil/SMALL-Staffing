@@ -18,8 +18,10 @@ export async function GET(req: NextRequest) {
   if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
-  const dryRunParam = req.nextUrl.searchParams.get("dryRun")
-  return run(dryRunParam === "1" || dryRunParam === "true")
+  const q = req.nextUrl.searchParams
+  const dryRunParam = q.get("dryRun")
+  // ?full=1 : reconstruction complète (pleine charge même table pleine).
+  return run(dryRunParam === "1" || dryRunParam === "true", q.get("full") === "1")
 }
 
 export async function POST(req: NextRequest) {
@@ -28,12 +30,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
   const body = await req.json().catch(() => ({}))
-  return run(body?.dryRun === true)
+  return run(body?.dryRun === true, body?.full === true)
 }
 
-async function run(dryRun: boolean) {
+async function run(dryRun: boolean, full = false) {
   try {
-    const report = await syncTimes({ dryRun })
+    const report = await syncTimes({ dryRun, full })
     return NextResponse.json({ ok: report.errors.length === 0, dryRun, ...report })
   } catch (e) {
     return NextResponse.json(

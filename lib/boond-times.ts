@@ -33,10 +33,19 @@ export interface TimesPage {
   total: number | null
 }
 
-export async function fetchTimesPage(page: number, order: "asc" | "desc"): Promise<TimesPage> {
+/**
+ * Une page de /times. `order` null = ordre NATUREL du tenant (stable, par id
+ * de ligne — relevé du 14/08) : c'est l'ordre sûr pour une pleine charge, car
+ * paginer sur un tri par startDate seul (clé NON unique) peut dupliquer ou
+ * sauter des lignes aux frontières de pages. Le tri desc ne sert qu'à la
+ * fenêtre incrémentale (arrêt anticipé) — ses doublons de frontière sont
+ * absorbés (skipDuplicates) et ses trous rattrapés par la relecture quotidienne.
+ */
+export async function fetchTimesPage(page: number, order: "asc" | "desc" | null): Promise<TimesPage> {
   const url =
     `${BASE}/times?page=${page}&maxResults=100&maxPerPage=100` +
-    `&sort=startDate&order=${order}&include=${encodeURIComponent(TIMES_INCLUDE)}`
+    (order ? `&sort=startDate&order=${order}` : "") +
+    `&include=${encodeURIComponent(TIMES_INCLUDE)}`
   const res = await fetch(url, {
     headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
     cache: "no-store",
