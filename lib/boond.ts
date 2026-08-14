@@ -153,6 +153,32 @@ export function pickArrival(a: Record<string, unknown>): string | null {
   return pickDate(a, ARRIVAL_FIELD, ["startDate", "entryDate", "dateOfEntry", "hiringDate", "arrivalDate"])
 }
 
+/**
+ * Date d'arrivée depuis le DÉTAIL d'une ressource — le listing /resources ne
+ * l'expose pas ; le tenant la porte dans `seniorityDate` (relevé du 13/08 :
+ * #598 → 2026-01-12, conforme au registre). Champ forçable via BOOND_ARRIVAL_FIELD.
+ */
+export function pickArrivalFromDetail(a: Record<string, unknown>): string | null {
+  return pickDate(a, ARRIVAL_FIELD, [
+    "seniorityDate",
+    "originalSeniorityDate",
+    "startDate",
+    "entryDate",
+    "hiringDate",
+  ])
+}
+
+/** GET /resources/{id} — attributs du détail (dates contrat, etc.). */
+export async function fetchResourceDetail(boondId: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${BASE}/resources/${boondId}`, {
+    headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
+    cache: "no-store",
+  })
+  if (!res.ok) throw new Error(`Boond /resources/${boondId} HTTP ${res.status}`)
+  const payload = await res.json()
+  return (payload?.data?.attributes ?? {}) as Record<string, unknown>
+}
+
 export function pickDeparture(a: Record<string, unknown>): string | null {
   return pickDate(a, DEPARTURE_FIELD, ["endDate", "exitDate", "dateOfExit", "departureDate", "releaseDate"])
 }

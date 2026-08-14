@@ -92,11 +92,13 @@ async function main() {
   const states = new Map<string, number>()
   const typeofs = new Map<string, number>()
   const titles = new Map<string, number>()
+  const rels = new Map<string, number>()
   const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1)
 
   for (const r of resources) {
     const a = r.attributes ?? {}
     for (const k of Object.keys(a)) bump(keys, k)
+    for (const k of Object.keys(r.relationships ?? {})) bump(rels, k)
     bump(states, String(a.state ?? "∅"))
     bump(typeofs, String(a.typeOf ?? "∅"))
     const t = pickTitle(a)
@@ -109,6 +111,7 @@ async function main() {
     console.log()
   }
   show("Clés d'attributs (fréquence)", keys)
+  show("Clés de RELATIONS (le lien manager se cache ici — cf. BOOND_MANAGER_REL)", rels)
   show("state (1 = à venir, 2 = IC, 3 = en mission — à confirmer)", states)
   show("typeOf (repérer les indépendants → BOOND_INDEP_TYPEOF)", typeofs)
   show("Titres BRUTS relevés (deviendront les grades)", titles)

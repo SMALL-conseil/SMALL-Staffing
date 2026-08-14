@@ -139,6 +139,27 @@ describe("runBoondSync (intégration, rollback)", () => {
     })
   })
 
+  it("création sans arrivée : la lit dans le DÉTAIL Boond (seniorityDate)", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      const r = await runBoondSync(
+        tx,
+        [
+          bp({ boondId: "test-det", name: "TEST BOOND Détail", arrival: null }),
+          bp({ boondId: "test-det2", name: "TEST BOOND DétailVide", arrival: null }),
+        ],
+        1,
+        async (id) =>
+          id === "test-det" ? { seniorityDate: "2026-09-01", dateOfBirth: "1990-01-01" } : {}
+      )
+      expect(r.arrivalsFromDetail).toBe(1)
+      expect(r.created).toBe(1)
+      expect(r.skippedNoArrival).toEqual(["TEST BOOND DétailVide"])
+      const p = await tx.person.findUnique({ where: { boondId: "test-det" } })
+      expect(p?.arrivalDate.toISOString().slice(0, 10)).toBe("2026-09-01")
+    })
+  })
+
   it("pose un départ fourni, ne l'efface jamais quand Boond n'en fournit pas", async () => {
     if (!dbOk) return
     await withRollback(async (tx) => {

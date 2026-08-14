@@ -14,7 +14,17 @@
 import { prisma } from "./prisma"
 import type { Prisma, PrismaClient } from "@prisma/client"
 import { CONSULTANT_GRADES, PersonKind, SIEGE_GRADES } from "./types"
-import { extractPerson, fetchResources, normText, type BoondPerson } from "./boond"
+import {
+  extractPerson,
+  fetchResourceDetail,
+  fetchResources,
+  normText,
+  pickArrivalFromDetail,
+  type BoondPerson,
+} from "./boond"
+
+/** Lecture du détail d'une ressource (injectable pour les tests). */
+export type DetailFetcher = (boondId: string) => Promise<Record<string, unknown>>
 
 type Db = PrismaClient | Prisma.TransactionClient
 
@@ -29,6 +39,8 @@ export interface SyncReport {
   skippedInactive: { name: string; state: string | null }[]
   skippedNoTitle: string[]
   skippedNoArrival: string[]
+  /** Arrivées lues dans le DÉTAIL Boond (seniorityDate) pour créer une personne. */
+  arrivalsFromDetail: number
   assumedConsultant: { name: string; title: string }[]
   unknownTitles: string[]
   kindConflicts: string[]
@@ -42,6 +54,7 @@ function emptyReport(received: number, pages: number): SyncReport {
   return {
     received, pages, updated: 0, created: 0, adopted: 0, managersLinked: 0,
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
+    arrivalsFromDetail: 0,
     assumedConsultant: [], unknownTitles: [], kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
@@ -57,7 +70,12 @@ export function kindFromTitle(title: string): { kind: string; assumed: boolean }
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
 
-export async function runBoondSync(db: Db, items: BoondPerson[], pages: number): Promise<SyncReport> {
+export async function runBoondSync(
+  db: Db,
+  items: BoondPerson[],
+  pages: number,
+  fetchDetail?: DetailFetcher
+): Promise<SyncReport> {
   const report = emptyReport(items.length, pages)
   if (!items.length) {
     report.errors.push("Flux Boond vide — synchronisation annulée par sécurité.")
@@ -106,15 +124,32 @@ export async function runBoondSync(db: Db, items: BoondPerson[], pages: number):
         }
 
         if (!person) {
-          // Création — la date d'arrivée est indispensable au moteur.
-          if (!p.arrival) { report.skippedNoArrival.push(p.name); continue }
+          // Création — la date d'arrivée est indispensable au moteur. Le
+          // listing ne l'exposant pas, on va la chercher dans le DÉTAIL de la
+          // ressource (seniorityDate) — uniquement pour les créations.
+          let arrival = p.arrival
+          if (!arrival && fetchDetail) {
+            try {
+              const detail = await fetchDetail(p.boondId)
+              const fromDetail = pickArrivalFromDetail(detail)
+              if (fromDetail) {
+                arrival = fromDetail
+                report.arrivalsFromDetail++
+              }
+            } catch (e) {
+              report.errors.push(
+                `Détail ressource ${p.boondId} (${p.name}) : ${e instanceof Error ? e.message : "erreur"}`
+              )
+            }
+          }
+          if (!arrival) { report.skippedNoArrival.push(p.name); continue }
           await db.person.create({
             data: {
               name: p.name,
               email: p.email,
               kind,
               grade: p.title,
-              arrivalDate: day(p.arrival),
+              arrivalDate: day(arrival),
               departureDate: p.departure ? day(p.departure) : null,
               boondId: p.boondId,
               boondState: p.state,
@@ -221,7 +256,7 @@ export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncRe
     let out: SyncReport | undefined
     try {
       await prisma.$transaction(async (tx) => {
-        out = await runBoondSync(tx, items, pages)
+        out = await runBoondSync(tx, items, pages, fetchResourceDetail)
         throw new DryRunRollback()
       }, { maxWait: 10_000, timeout: 120_000 })
     } catch (e) {
@@ -229,7 +264,7 @@ export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncRe
     }
     report = out as SyncReport
   } else {
-    report = await runBoondSync(prisma, items, pages)
+    report = await runBoondSync(prisma, items, pages, fetchResourceDetail)
   }
 
   // Journal (aussi en dry run — le rapport est la valeur du test)

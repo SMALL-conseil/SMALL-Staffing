@@ -113,9 +113,11 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
                 {report.received} ressource(s) reçue(s)
               </p>
               <p className="text-[12px] text-texte mt-1">
-                {report.created} créé(s) · {report.updated} mis à jour · {report.adopted} rapproché(s)
-                (boondId adopté) · {report.managersLinked} lien(s) manager · {report.nonRapproches} sans
-                boondId en base
+                {report.created} créé(s)
+                {(report.arrivalsFromDetail ?? 0) > 0 &&
+                  ` (dont ${report.arrivalsFromDetail} arrivée(s) lue(s) dans Boond)`}{" "}
+                · {report.updated} mis à jour · {report.adopted} rapproché(s) (boondId adopté) ·{" "}
+                {report.managersLinked} lien(s) manager · {report.nonRapproches} sans boondId en base
               </p>
               {liste("Titres hors grilles (grade conservé BRUT)", report.unknownTitles ?? [])}
               {liste("Sans titre — ignorés", report.skippedNoTitle ?? [])}
