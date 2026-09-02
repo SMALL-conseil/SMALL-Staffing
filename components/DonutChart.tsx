@@ -58,8 +58,9 @@ export default function DonutChart({
   centerLabel,
   logoSlots = 3,
 }: DonutChartProps) {
+  // Montants arrondis à l'euro (légende, infobulle, aria) — demande du 02/09.
   const format = (v: number) =>
-    unit === "euros" ? formatEuros(v) : `${v} consultant${v > 1 ? "s" : ""}`
+    unit === "euros" ? formatEuros(Math.round(v)) : `${v} consultant${v > 1 ? "s" : ""}`
   const [hover, setHover] = useState<number | null>(null)
   // Un logo n'est dessiné qu'une fois RÉELLEMENT chargé (préchargement JS —
   // l'onError des <image> SVG n'est pas fiable, on évite l'icône cassée).
@@ -181,6 +182,10 @@ export default function DonutChart({
             </span>
           </li>
         ))}
+        <li className="flex items-baseline gap-2 text-[12.5px] border-t border-ligne pt-2 mt-2 px-1.5">
+          <span className="font-bold text-anthracite">Total</span>
+          <span className="font-bold text-anthracite ml-auto whitespace-nowrap">{format(total)}</span>
+        </li>
       </ul>
     </div>
   )

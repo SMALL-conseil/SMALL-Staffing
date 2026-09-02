@@ -178,9 +178,10 @@ export default async function ReportingPage({
             data={dataCa}
             unit="euros"
             centerValue={
+              // Total central à 2 décimales (ex. « 3,67 M€ ») — demande du 02/09.
               ca.total >= 1_000_000
-                ? `${(ca.total / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€`
-                : `${Math.round(ca.total / 1000).toLocaleString("fr-FR")} k€`
+                ? `${(ca.total / 1_000_000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M€`
+                : `${(ca.total / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} k€`
             }
             centerLabel={`CA ${year}`}
           />
