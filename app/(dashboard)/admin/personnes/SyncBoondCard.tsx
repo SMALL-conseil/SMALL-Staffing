@@ -117,7 +117,8 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
                 {(report.arrivalsFromDetail ?? 0) > 0 &&
                   ` (dont ${report.arrivalsFromDetail} arrivée(s) lue(s) dans Boond)`}{" "}
                 · {report.updated} mis à jour · {report.adopted} rapproché(s) (boondId adopté) ·{" "}
-                {report.managersLinked} lien(s) manager · {report.nonRapproches} sans boondId en base
+                {report.managersLinked} lien(s) manager · {report.ratesSet ?? 0} TJM fiche posé(s) ·{" "}
+                {report.nonRapproches} sans boondId en base
               </p>
               {liste("Titres Boond hors grilles (à corriger dans Boond)", report.unknownTitles ?? [])}
               {liste("Grade conservé (titre Boond hors grille)", report.gradesPreserved ?? [])}
@@ -127,6 +128,7 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
               {liste("Kind supposé consultant (titre inconnu)", (report.assumedConsultant ?? []).map((a) => `${a.name} (${a.title})`))}
               {liste("Conflits consultant/siège — non modifiés", report.kindConflicts ?? [])}
               {liste("Conflits d'unicité (email/nom) — champ conservé", report.uniqueConflicts ?? [])}
+              {liste("Consultants actifs SANS TJM sur la fiche Boond (repli du CA impossible)", report.activesSansTaux ?? [])}
               {liste("Départs posés", (report.departuresSet ?? []).map((d) => `${d.name} → ${d.date}`))}
               {liste("Inactifs Boond — ignorés", (report.skippedInactive ?? []).map((s) => `${s.name} (état ${s.state ?? "?"})`))}
               {liste("Présents en base, absents du flux (à vérifier)", report.absentsDuFlux ?? [])}

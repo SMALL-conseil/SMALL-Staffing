@@ -11,7 +11,10 @@
 //    JOURNALIER ; part d'intervention volontairement NON pondérée — affiché
 //    comme hypothèse sur la page). Année en cours : mois arrêtés au mois
 //    courant (CA « généré ») ; année future : prévisionnel sur 12 mois.
-//    Les missions sans honoraires renseignés sont EXCLUES et comptées.
+//  · Cascade des taux (a17) : honoraires de la MISSION s'ils sont saisis,
+//    sinon TJM par défaut de la FICHE Boond du titulaire (defaultDailyRate,
+//    synchro quotidienne). Les missions sans AUCUN taux sont EXCLUES et
+//    comptées (« sans honoraires »).
 // ============================================================
 
 export const JOURS_FACTURES_PAR_AN = 218
@@ -24,6 +27,14 @@ export interface ReportingMission {
   end: string
   /** Honoraires journaliers (€/jour) — null = non renseignés. */
   fees: number | null
+  /** TJM par défaut de la FICHE Boond du titulaire (a17) — repli de la
+   *  cascade quand fees est null. Optionnel (absent = pas de repli). */
+  defaultRate?: number | null
+}
+
+/** Cascade des taux (a17) : honoraires de la mission, sinon TJM fiche Boond. */
+export function tauxJournalier(m: ReportingMission): number | null {
+  return m.fees ?? m.defaultRate ?? null
 }
 
 export interface ClientConsultants {
@@ -94,11 +105,12 @@ export function caParClient(missions: ReportingMission[], year: number, today: s
   for (const m of missions) {
     const mois = moisDeMission(m, year, today)
     if (mois === 0) continue
-    if (m.fees === null) {
+    const taux = tauxJournalier(m)
+    if (taux === null) {
       sans.set(m.client, (sans.get(m.client) ?? 0) + 1)
       continue
     }
-    const montant = m.fees * mois * (JOURS_FACTURES_PAR_AN / 12)
+    const montant = taux * mois * (JOURS_FACTURES_PAR_AN / 12)
     const cur = ca.get(m.client) ?? { ca: 0, mois: 0 }
     ca.set(m.client, { ca: cur.ca + montant, mois: cur.mois + mois })
   }
@@ -196,8 +208,9 @@ export function caParClientReel(
         const parClient = couvrantes.find((m) => normClient(m.client) === normClient(j.clientName))
         if (parClient) mission = parClient
       }
-      if (mission.fees === null) { addSans(mission); continue }
-      const montant = j.duration * mission.fees
+      const taux = tauxJournalier(mission)
+      if (taux === null) { addSans(mission); continue }
+      const montant = j.duration * taux
       caReel += montant
       add(mission.client, montant)
     }
@@ -208,8 +221,9 @@ export function caParClientReel(
     for (const m of missions) {
       const mois = moisActifs(m, year, convFrom, convTo)
       if (mois === 0) continue
-      if (m.fees === null) { addSans(m); continue }
-      const montant = m.fees * mois * (JOURS_FACTURES_PAR_AN / 12)
+      const taux = tauxJournalier(m)
+      if (taux === null) { addSans(m); continue }
+      const montant = taux * mois * (JOURS_FACTURES_PAR_AN / 12)
       caConvention += montant
       add(m.client, montant, mois)
     }

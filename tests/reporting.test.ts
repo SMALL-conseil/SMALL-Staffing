@@ -154,6 +154,40 @@ describe("CA réel par client (a12 — jours CRA × honoraires)", () => {
   })
 })
 
+describe("cascade des taux (a17) : fees mission > TJM fiche > exclu", () => {
+  const j = (over: Partial<ReportingJour>): ReportingJour => ({
+    personId: "p1", date: "2026-03-10", duration: 1, clientName: null, ...over,
+  })
+
+  it("convention : le TJM fiche prend le relais quand fees est vide, fees reste prioritaire", () => {
+    const out = caParClient(
+      [
+        m({ client: "GROUPAMA", fees: null, defaultRate: 950 }), // repli fiche
+        m({ client: "ACCOR", fees: 800, defaultRate: 1200 }), // fees prioritaire
+        m({ client: "FDJ", fees: null, defaultRate: null }), // aucun taux → exclue
+      ],
+      2026,
+      TODAY
+    )
+    const groupama = out.entries.find((e) => e.client === "GROUPAMA")!
+    expect(groupama.ca).toBeCloseTo(950 * 8 * (218 / 12), 5)
+    const accor = out.entries.find((e) => e.client === "ACCOR")!
+    expect(accor.ca).toBeCloseTo(800 * 8 * (218 / 12), 5)
+    expect(out.sansHonoraires).toEqual([{ client: "FDJ", missions: 1 }])
+  })
+
+  it("réel : jours × TJM fiche quand fees est vide", () => {
+    const out = caParClientReel(
+      [m({ client: "GROUPAMA", fees: null, defaultRate: 950 })],
+      [j({ date: "2026-03-10" }), j({ date: "2026-04-01", duration: 0.5 })],
+      2026,
+      TODAY
+    )
+    expect(out.caReel).toBeCloseTo(1.5 * 950, 5)
+    expect(out.sansHonoraires).toEqual([])
+  })
+})
+
 describe("repli des petites parts", () => {
   it("au-delà de 8, replie le reste en « Autres »", () => {
     const slices = Array.from({ length: 11 }, (_, i) => ({ label: `C${i}`, value: 11 - i }))

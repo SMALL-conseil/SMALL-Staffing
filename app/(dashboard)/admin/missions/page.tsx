@@ -14,7 +14,7 @@ export default async function AdminMissionsPage() {
   const [missions, consultants] = await Promise.all([
     prisma.mission.findMany({
       orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
-      include: { person: { select: { name: true } } },
+      include: { person: { select: { name: true, defaultDailyRate: true } } },
     }),
     prisma.person.findMany({
       where: { kind: PersonKind.CONSULTANT, active: true },
@@ -36,6 +36,7 @@ export default async function AdminMissionsPage() {
     note: m.note,
     rank: m.rank,
     fees: m.fees,
+    defaultRate: m.person.defaultDailyRate,
   }))
   const clients = [...new Set(rows.map((m) => m.client))].sort((a, b) => a.localeCompare(b, "fr"))
   const enCours = rows.filter((m) => m.start <= today && today <= m.end)

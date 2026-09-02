@@ -37,8 +37,13 @@ export default async function ReportingPage({
   const year = Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100 ? parsed : currentYear
 
   // Missions triées par rank : le départage jour → mission en dépend (a12).
+  // TJM fiche du titulaire (a17) : cascade fees ?? defaultDailyRate — cette
+  // page est gate Siège, seule à recevoir ces valeurs (avec /admin/missions).
   const missionsDb = await prisma.mission.findMany({
-    select: { personId: true, client: true, startDate: true, endDate: true, fees: true },
+    select: {
+      personId: true, client: true, startDate: true, endDate: true, fees: true,
+      person: { select: { defaultDailyRate: true } },
+    },
     orderBy: { rank: "asc" },
   })
   const missions: ReportingMission[] = missionsDb.map((m) => ({
@@ -47,6 +52,7 @@ export default async function ReportingPage({
     start: toIsoDate(m.startDate),
     end: toIsoDate(m.endDate),
     fees: m.fees,
+    defaultRate: m.person.defaultDailyRate,
   }))
 
   // Jours de CRA « production » de l'année affichée (synchro Boond a12).
@@ -160,6 +166,7 @@ export default async function ReportingPage({
               : year === currentYear
                 ? `Réel CRA de janvier à ${MOIS_LONGS[reel.moisReelMax - 1]} (jours de production × honoraires €/jour) : ${fmtCa(reel.caReel)} · convention ${JOURS_FACTURES_PAR_AN}/12 pour ${MOIS_LONGS[Number(today.slice(5, 7)) - 1]} : ${fmtCa(reel.caConvention)}.`
                 : `Réel CRA sur les 12 mois de ${year} : jours de production × honoraires (€/jour) des missions.`}
+          {" Taux journalier : honoraires saisis sur la mission, sinon TJM de la fiche Boond (synchro quotidienne)."}
         </p>
         {ca.entries.length === 0 ? (
           <p className="text-[13px] text-texte-2">
@@ -180,9 +187,9 @@ export default async function ReportingPage({
         )}
         {ca.sansHonoraires.length > 0 && (
           <p className="text-[11.5px] text-attente bg-beige rounded-[8px] px-3 py-2 mt-4">
-            {`Hors périmètre (honoraires non renseignés) : ${ca.sansHonoraires
+            {`Hors périmètre (aucun taux : ni honoraires saisis, ni TJM sur la fiche Boond) : ${ca.sansHonoraires
               .map((s) => `${s.client} (${s.missions} mission${s.missions > 1 ? "s" : ""})`)
-              .join(" · ")} — à compléter dans le registre des missions.`}
+              .join(" · ")} — saisir les honoraires au registre ou compléter le TJM dans Boond.`}
           </p>
         )}
         {reel && reel.joursSansMission > 0 && (

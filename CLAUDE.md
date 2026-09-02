@@ -166,9 +166,16 @@ User.role et Person.kind emploient les mêmes mots pour deux notions distinctes.
 décision du 11/08 — la formule CA du reporting en découle) — saisie/modif/
 suppression dans le registre des missions, missions COMMENCÉES uniquement
 (contrôle API), montants français acceptés (« 1 200,50 »), champ vidé =
-suppression. Règle de cloisonnement : fees n'est sérialisé QUE vers
-/admin/missions et /admin/reporting (gates Siège) — toute nouvelle
-sérialisation de Mission doit préserver cette règle.
+suppression. **Cascade des taux (a17)** : le CA emploie
+`Mission.fees ?? Person.defaultDailyRate` (TJM de vente par défaut de la
+FICHE Boond, champ `averageDailyPriceExcludingTax` du listing /resources —
+recensement a16 : rempli sur 32/65, seul champ financier ouvert au jeton
+standard ; synchro quotidienne, jamais effacé si la fiche se vide ; consultants
+actifs sans TJM listés au rapport de synchro). Une mission sans AUCUN taux est
+exclue du CA et signalée. Règle de cloisonnement (élargie a17) : `fees` ET
+`defaultDailyRate` ne sont sérialisés QUE vers /admin/missions et
+/admin/reporting (gates Siège) — `loadStaffingData` mappe des champs explicites,
+maintenir cette discipline pour toute nouvelle sérialisation de Person/Mission.
 **Reporting** `/admin/reporting` (Siège) : donuts consultants par client
 (aujourd'hui) et CA par client. **CA réel (a12, décision du 14/08)** : dès que
 les jours de CRA sont synchronisés, les mois ÉCOULÉS de l'année affichée sont

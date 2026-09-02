@@ -35,6 +35,9 @@ const INDEP_TYPEOF = (process.env.BOOND_INDEP_TYPEOF || "")
 // Domaine privilégié pour choisir l'email parmi email1/2/3.
 const PREFERRED_EMAIL_DOMAIN = (process.env.BOOND_PREFERRED_EMAIL_DOMAIN ?? "small-conseil.com")
   .trim().toLowerCase()
+// Champ du TJM de vente par défaut de la fiche (recensement a16 du 02/09 :
+// averageDailyPriceExcludingTax, rempli sur 32/65 ressources du listing).
+const RATE_FIELD = process.env.BOOND_RATE_FIELD || "averageDailyPriceExcludingTax"
 
 // --- JWT client HS256 (sans dépendance — identique Formation) ---
 function b64url(input: Buffer | string): string {
@@ -183,6 +186,13 @@ export async function fetchResourceDetail(boondId: string): Promise<Record<strin
   return (payload?.data?.attributes ?? {}) as Record<string, unknown>
 }
 
+/** TJM de vente par défaut de la fiche (€/jour) — nombre strictement positif,
+ *  sinon null (0 ou vide = « non renseigné dans Boond »). */
+export function pickDailyRate(a: Record<string, unknown>): number | null {
+  const n = Number(a[RATE_FIELD])
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 export function pickDeparture(a: Record<string, unknown>): string | null {
   return pickDate(a, DEPARTURE_FIELD, ["endDate", "exitDate", "dateOfExit", "departureDate", "releaseDate"])
 }
@@ -214,6 +224,8 @@ export interface BoondPerson {
   typeOf: string | null
   arrival: string | null
   departure: string | null
+  /** TJM de vente par défaut de la fiche (€/jour) — null = non renseigné. */
+  dailyRate: number | null
   managerBoondId: string | null
   excluded: boolean
   activeState: boolean
@@ -234,6 +246,7 @@ export function extractPerson(r: BoondResource): BoondPerson {
     typeOf: a.typeOf === undefined || a.typeOf === null ? null : String(a.typeOf),
     arrival: pickArrival(a),
     departure: pickDeparture(a),
+    dailyRate: pickDailyRate(a),
     managerBoondId: mgr === undefined || mgr === null ? null : String(mgr),
     excluded: isExcludedType(a),
     activeState: isActiveState(a),

@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest"
-import { extractPerson, normDate, normalizeTitle, pickEmail } from "@/lib/boond"
+import { extractPerson, normDate, normalizeTitle, pickDailyRate, pickEmail } from "@/lib/boond"
+
+describe("pickDailyRate (TJM fiche, a17)", () => {
+  it("nombre positif → gardé ; 0, vide, non numérique → null", () => {
+    expect(pickDailyRate({ averageDailyPriceExcludingTax: 950 })).toBe(950)
+    expect(pickDailyRate({ averageDailyPriceExcludingTax: "800" })).toBe(800)
+    expect(pickDailyRate({ averageDailyPriceExcludingTax: 0 })).toBeNull()
+    expect(pickDailyRate({ averageDailyPriceExcludingTax: "" })).toBeNull()
+    expect(pickDailyRate({ averageDailyPriceExcludingTax: "n/a" })).toBeNull()
+    expect(pickDailyRate({})).toBeNull()
+  })
+  it("extractPerson transporte le TJM", () => {
+    const p = extractPerson({
+      id: "1",
+      attributes: { firstName: "A", lastName: "B", title: "C", averageDailyPriceExcludingTax: 1100 },
+    })
+    expect(p.dailyRate).toBe(1100)
+  })
+})
 
 describe("normalisation des titres Boond (relevé du tenant, 13/08/2026)", () => {
   it("échelons fins conservés BRUTS", () => {

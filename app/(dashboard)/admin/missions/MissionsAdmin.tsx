@@ -21,6 +21,9 @@ export interface MissionRow {
   rank: number
   /** Honoraires (€) — cette page n'est servie qu'au rôle Siège. */
   fees: number | null
+  /** TJM par défaut de la fiche Boond du titulaire (a17) — repli du CA
+   *  quand fees est vide. Même cloisonnement Siège que fees. */
+  defaultRate: number | null
 }
 
 export interface ConsultantOption {
@@ -294,7 +297,14 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
                 value={form.fees}
                 onChange={(e) => setForm({ ...form, fees: e.target.value })}
                 className="field-input"
-                placeholder="ex. 1 200"
+                placeholder={
+                  editing !== "new" && editing !== null
+                    ? (() => {
+                        const rate = missions.find((m) => m.id === editing)?.defaultRate
+                        return rate != null ? `défaut fiche Boond : ${formatEuros(rate)}` : "ex. 1 200"
+                      })()
+                    : "ex. 1 200"
+                }
                 inputMode="decimal"
                 disabled={!!form.startDate && form.startDate > today}
                 title={
@@ -306,7 +316,7 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
               <p className="text-[10.5px] text-label mt-1">
                 {form.startDate && form.startDate > today
                   ? "Mission non commencée : saisie possible dès son démarrage."
-                  : "Vider le champ = supprimer le montant."}
+                  : "Vide = repli sur le TJM de la fiche Boond (s'il existe) ; un montant saisi le remplace pour cette mission."}
               </p>
             </div>
           </div>
@@ -352,6 +362,10 @@ export default function MissionsAdmin({ missions, consultants, clients }: Props)
                 <div className="col-span-2 text-right whitespace-nowrap">
                   {m.fees != null ? (
                     <span className="font-bold text-anthracite">{formatEuros(m.fees)} / j</span>
+                  ) : m.defaultRate != null ? (
+                    <span className="text-texte-2" title="TJM par défaut de la fiche Boond — saisir des honoraires sur la mission pour le remplacer">
+                      {formatEuros(m.defaultRate)} / j · fiche
+                    </span>
                   ) : (
                     <span className="text-gris-moyen">—</span>
                   )}

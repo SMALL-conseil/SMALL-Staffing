@@ -58,6 +58,11 @@ export interface SyncReport {
   gradesPreserved: string[]
   /** Fiches suivies (boondId) dont le Titre Boond est vide — grade conservé. */
   noTitleSynced: string[]
+  /** TJM fiche posés ou mis à jour ce passage (Person.defaultDailyRate, a17). */
+  ratesSet: number
+  /** Consultants ACTIFS du flux sans TJM sur leur fiche Boond — la cascade du
+   *  CA retombe alors sur les seuls honoraires saisis mission par mission. */
+  activesSansTaux: string[]
   kindConflicts: string[]
   departuresSet: { name: string; date: string }[]
   absentsDuFlux: string[]
@@ -71,6 +76,7 @@ function emptyReport(received: number, pages: number): SyncReport {
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
+    ratesSet: 0, activesSansTaux: [],
     kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
@@ -218,8 +224,11 @@ export async function runBoondSync(
               boondId: p.boondId,
               boondState: p.state,
               boondSyncedAt: now,
+              defaultDailyRate: p.dailyRate,
             },
           })
+          if (p.dailyRate !== null) report.ratesSet++
+          else if (kind === PersonKind.CONSULTANT) report.activesSansTaux.push(p.name)
           if (p.departure) report.departuresSet.push({ name: p.name, date: p.departure })
           if (!(CONSULTANT_GRADES as readonly string[]).includes(title) &&
               !(SIEGE_GRADES as readonly string[]).includes(title) &&
@@ -278,6 +287,16 @@ export async function runBoondSync(
         }
       } else {
         report.noTitleSynced.push(p.name)
+      }
+      // TJM fiche (a17) : posé ou mis à jour quand Boond en fournit un —
+      // JAMAIS effacé quand la fiche n'en porte pas (même prudence que le
+      // départ) ; les honoraires saisis par mission restent prioritaires.
+      if (p.dailyRate !== null && p.dailyRate !== person.defaultDailyRate) {
+        data.defaultDailyRate = p.dailyRate
+        report.ratesSet++
+      }
+      if (p.dailyRate === null && person.kind === PersonKind.CONSULTANT) {
+        report.activesSansTaux.push(p.name)
       }
       if (p.arrival) data.arrivalDate = day(p.arrival)
       if (p.departure) {

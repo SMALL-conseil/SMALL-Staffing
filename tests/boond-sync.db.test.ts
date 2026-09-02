@@ -48,6 +48,7 @@ function bp(over: Partial<BoondPerson>): BoondPerson {
     typeOf: "0",
     arrival: "2026-01-05",
     departure: null,
+    dailyRate: null,
     managerBoondId: null,
     excluded: false,
     activeState: true,
@@ -306,6 +307,35 @@ describe("runBoondSync (intégration, rollback)", () => {
       const siege = await tx.person.findUnique({ where: { boondId: "test-u1" } })
       expect(siege?.email).toBeNull() // email conservé (null), pas volé à l'autre fiche
       expect(siege?.grade).toBe("Chargée de missions transverses")
+    })
+  })
+
+  it("TJM fiche (a17) : posé à la création, mis à jour, JAMAIS effacé, absents signalés", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      // Création avec TJM + un actif sans TJM (signalé).
+      const r1 = await runBoondSync(
+        tx,
+        [
+          bp({ boondId: "test-r1", name: "TEST BOOND Taux", title: "CS 1", dailyRate: 950 }),
+          bp({ boondId: "test-r2", name: "TEST BOOND SansTaux", title: "C" }),
+        ],
+        1
+      )
+      expect(r1.ratesSet).toBe(1)
+      expect(r1.activesSansTaux).toEqual(["TEST BOOND SansTaux"])
+      expect((await tx.person.findUnique({ where: { boondId: "test-r1" } }))?.defaultDailyRate).toBe(950)
+
+      // Augmentation reflétée…
+      const r2 = await runBoondSync(tx, [bp({ boondId: "test-r1", name: "TEST BOOND Taux", title: "CS 1", dailyRate: 1050 })], 1)
+      expect(r2.ratesSet).toBe(1)
+      expect((await tx.person.findUnique({ where: { boondId: "test-r1" } }))?.defaultDailyRate).toBe(1050)
+
+      // …mais un flux SANS taux n'efface jamais l'existant.
+      const r3 = await runBoondSync(tx, [bp({ boondId: "test-r1", name: "TEST BOOND Taux", title: "CS 1" })], 1)
+      expect(r3.ratesSet).toBe(0)
+      expect((await tx.person.findUnique({ where: { boondId: "test-r1" } }))?.defaultDailyRate).toBe(1050)
+      expect(r3.activesSansTaux).toEqual(["TEST BOOND Taux"]) // signalé tant que la fiche Boond est vide
     })
   })
 
