@@ -57,3 +57,4 @@ deploy/.deployed_tag_*
 p r i s m a / d e v . d b
 
 _to_delete/
+exports/
