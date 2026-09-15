@@ -1,0 +1,222 @@
+// ============================================================
+//  D'OÙ VIENT LE CA ? (a32) — décomposition du KPI, et de sa VARIATION.
+//      npx tsx scripts/ca-decomposition.ts [AAAA]
+//
+//  Le rechargement complet des CRA a fait bouger le montant. Trois causes
+//  possibles, et ce relevé les CHIFFRE au lieu de les supposer :
+//   1. le périmètre du jeton (a27) a fait entrer les jours des 10 bordelais ;
+//   2. les prestations (s6) valorisent chaque jour au TJM VENDU, là où la
+//      cascade retombait sur les honoraires de mission — ou sur RIEN, auquel
+//      cas le jour n'était pas compté du tout ;
+//   3. l'historique rechargé couvre des mois que la fenêtre des 90 jours ne
+//      relisait plus.
+//
+//  Le script recalcule le même CA sous plusieurs hypothèses, avec le MÊME
+//  moteur que l'app (lib/reporting.ts), et affiche l'écart entre chacune.
+//  Puis il cherche ce qui gonfle anormalement : durées qui ne valent pas une
+//  journée, TJM aberrants, clients qui ressemblent à de la facturation interne,
+//  jours hors de la présence de la personne.
+//  Lecture seule.
+// ============================================================
+import "dotenv/config"
+import { prisma } from "../lib/prisma"
+import { toIsoDate } from "../lib/staffing-load"
+import { todayParis } from "../lib/staffing-ui"
+import { caParClientReel, type ReportingJour, type ReportingMission } from "../lib/reporting"
+import { Agency } from "../lib/types"
+
+const eur = (n: number) =>
+  `${Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ")} €`
+const jr = (n: number) => n.toFixed(2).replace(".", ",")
+const titre = (t: string) => console.log(`\n${"═".repeat(78)}\n${t}\n${"═".repeat(78)}`)
+// Un client qui ressemble à du refacturé interne : ce n'est pas du chiffre
+// d'affaires externe, et ça peut gonfler le KPI sans qu'on le voie.
+const INTERNE = /small|interne|intragroupe|intra-groupe/i
+
+async function main() {
+  const today = todayParis()
+  const year = Number(process.argv.slice(2).find((a) => /^\d{4}$/.test(a)) ?? today.slice(0, 4))
+
+  const [missionsDb, joursDb, prestations] = await Promise.all([
+    prisma.mission.findMany({
+      include: { person: { select: { name: true, agency: true, defaultDailyRate: true } } },
+      orderBy: [{ rank: "asc" }],
+    }),
+    prisma.timeEntry.findMany({
+      where: {
+        activityType: "production",
+        date: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
+      },
+      select: {
+        personId: true, date: true, duration: true, clientName: true, deliveryBoondId: true,
+        person: { select: { name: true, agency: true, arrivalDate: true, departureDate: true } },
+      },
+    }),
+    prisma.delivery.findMany({ select: { boondId: true, dailyRate: true, clientName: true } }),
+  ])
+
+  if (!joursDb.length) {
+    console.log(`Aucun jour de production en ${year}.`)
+    return
+  }
+
+  const tjm = new Map(prestations.map((d) => [d.boondId, d.dailyRate]))
+  const missions: ReportingMission[] = missionsDb.map((m) => ({
+    personId: m.personId,
+    client: m.client,
+    start: toIsoDate(m.startDate),
+    end: toIsoDate(m.endDate),
+    share: m.share,
+    fees: m.fees,
+    defaultRate: m.person.defaultDailyRate,
+  }))
+  const jours: ReportingJour[] = joursDb.map((j) => ({
+    personId: j.personId,
+    date: toIsoDate(j.date),
+    duration: j.duration,
+    clientName: j.clientName,
+    dailyRate: j.deliveryBoondId ? (tjm.get(j.deliveryBoondId) ?? null) : null,
+  }))
+  const bordelais = new Set(
+    joursDb.filter((j) => j.person.agency === Agency.BORDEAUX).map((j) => j.personId)
+  )
+
+  // ---------------------------------------------------------------- 1. Écarts
+  titre(`CA ${year} — d'où vient le montant`)
+  const aujourdhui = caParClientReel(missions, jours, year, today)
+  const sansPrestations = caParClientReel(
+    missions,
+    jours.map((j) => ({ ...j, dailyRate: null })),
+    year,
+    today
+  )
+  const sansBordeaux = caParClientReel(
+    missions,
+    jours.filter((j) => !bordelais.has(j.personId)),
+    year,
+    today
+  )
+  const avantTout = caParClientReel(
+    missions,
+    jours.filter((j) => !bordelais.has(j.personId)).map((j) => ({ ...j, dailyRate: null })),
+    year,
+    today
+  )
+
+  console.log(`  Aujourd'hui                                  ${eur(aujourdhui.total).padStart(14)}`)
+  console.log(
+    `    dont réel (janv → mois ${String(aujourdhui.moisReelMax).padStart(2)})              ${eur(aujourdhui.caReel).padStart(14)}`
+  )
+  console.log(`    dont convention (mois courant)             ${eur(aujourdhui.caConvention).padStart(14)}`)
+  console.log(
+    `\n  Sans les prestations (cascade seule, avant s6)${eur(sansPrestations.total).padStart(14)}` +
+      `   écart ${eur(aujourdhui.total - sansPrestations.total)}`
+  )
+  console.log(
+    `  Sans les bordelais (avant a27)               ${eur(sansBordeaux.total).padStart(14)}` +
+      `   écart ${eur(aujourdhui.total - sansBordeaux.total)}`
+  )
+  console.log(
+    `  Sans l'un ni l'autre (l'état d'avant)        ${eur(avantTout.total).padStart(14)}` +
+      `   écart TOTAL ${eur(aujourdhui.total - avantTout.total)}`
+  )
+  console.log(
+    `\n  Jours valorisés au TJM de la prestation : ${jr(aujourdhui.joursAuTjmPrestation)}` +
+      ` · par la cascade : ${jr(aujourdhui.joursALaCascade)}` +
+      ` · sans aucun taux : ${jr(aujourdhui.joursSansMission)}`
+  )
+
+  // ------------------------------------------------------------- 2. Par mois
+  titre(`Mois par mois (volet RÉEL uniquement)`)
+  const parMois = new Map<string, { jours: number; ca: number }>()
+  for (const j of jours) {
+    const mois = j.date.slice(0, 7)
+    if (Number(mois.slice(5, 7)) > aujourdhui.moisReelMax) continue
+    const taux =
+      j.dailyRate ??
+      (() => {
+        const m = missions.find((x) => x.personId === j.personId && x.start <= j.date && j.date <= x.end)
+        return m ? (m.fees ?? m.defaultRate ?? null) : null
+      })()
+    const cur = parMois.get(mois) ?? { jours: 0, ca: 0 }
+    cur.jours += j.duration
+    cur.ca += taux ? j.duration * taux : 0
+    parMois.set(mois, cur)
+  }
+  for (const [mois, v] of [...parMois.entries()].sort()) {
+    console.log(
+      `  ${mois}   ${jr(v.jours).padStart(8)} j   ${eur(v.ca).padStart(13)}` +
+        `   TJM moyen ${v.jours ? Math.round(v.ca / v.jours) : 0} €`
+    )
+  }
+
+  // ----------------------------------------------------------- 3. Par client
+  titre(`Par client — et ce qui ressemble à du refacturé interne`)
+  let interne = 0
+  for (const e of aujourdhui.entries.slice(0, 25)) {
+    const drapeau = INTERNE.test(e.client) ? "   ⚠ INTERNE ?" : ""
+    if (INTERNE.test(e.client)) interne += e.ca
+    console.log(`  ${e.client.slice(0, 38).padEnd(40)} ${eur(e.ca).padStart(13)}${drapeau}`)
+  }
+  if (interne > 0) {
+    console.log(
+      `\n  ⚠ ${eur(interne)} portés par des libellés qui sentent la facturation interne.` +
+        `\n    À exclure du CA client si c'en est : me le dire, la règle se pose en une ligne.`
+    )
+  }
+
+  // --------------------------------------------------- 4. Ce qui gonfle mal
+  titre(`Anomalies qui gonflent un CA`)
+
+  const durees = new Map<number, number>()
+  for (const j of joursDb) durees.set(j.duration, (durees.get(j.duration) ?? 0) + 1)
+  console.log(
+    `  Durées rencontrées : ${[...durees.entries()].sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d} × ${n}`).join(" · ")}`
+  )
+  const suspectes = [...durees.keys()].filter((d) => d > 1)
+  if (suspectes.length) {
+    console.log(
+      `  ⚠ des lignes valent PLUS d'une journée (${suspectes.join(", ")}) : si ce sont des heures,` +
+        `\n    chaque ligne compte 7 à 8 fois trop dans le CA.`
+    )
+  }
+
+  const taux = jours.map((j) => j.dailyRate).filter((t): t is number => typeof t === "number")
+  if (taux.length) {
+    const tri = [...taux].sort((a, b) => a - b)
+    console.log(
+      `  TJM des prestations utilisés : min ${tri[0]} € · médiane ${tri[Math.floor(tri.length / 2)]} €` +
+        ` · max ${tri[tri.length - 1]} €`
+    )
+    const hauts = [...new Set(tri.filter((t) => t > 2000))]
+    if (hauts.length) console.log(`  ⚠ TJM > 2000 € : ${hauts.join(", ")} — forfait pris pour un taux ?`)
+  }
+
+  let horsPresence = 0
+  for (const j of joursDb) {
+    const d = toIsoDate(j.date)
+    const arr = toIsoDate(j.person.arrivalDate)
+    const dep = j.person.departureDate ? toIsoDate(j.person.departureDate) : null
+    if (d < arr || (dep && d > dep)) horsPresence += j.duration
+  }
+  console.log(
+    `  Jours pointés HORS de la présence de la personne : ${jr(horsPresence)}` +
+      (horsPresence > 0 ? "   ⚠ (dates d'arrivée/départ à vérifier — mobilité s7 ?)" : "")
+  )
+
+  const sansTaux = jours.filter((j) => j.dailyRate === null)
+  console.log(`  Jours sans TJM de prestation (retombés sur la cascade) : ${jr(sansTaux.reduce((n, j) => n + j.duration, 0))}`)
+
+  console.log(
+    `\n  Rappel de la convention : les mois ÉCOULÉS sont au réel, le mois courant` +
+      `\n  est conventionnel (honoraires × 218/12). Un CA annuel « attendu » se compare` +
+      `\n  donc à ce total-ci, pas à une extrapolation sur 12 mois.`
+  )
+}
+
+main()
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(() => prisma.$disconnect())

@@ -7,6 +7,7 @@ import { todayParis } from "@/lib/staffing-ui"
 import MissionsAdmin from "./MissionsAdmin"
 import PropositionsCard from "./PropositionsCard"
 import { chargePropositions } from "@/lib/missions-proposees-load"
+import { contextePerimetre } from "@/lib/perimetre-session"
 
 // Registre des missions (ADMIN) — la saisie qui remplace l'Excel.
 export default async function AdminMissionsPage() {
@@ -43,8 +44,10 @@ export default async function AdminMissionsPage() {
   const clients = [...new Set(rows.map((m) => m.client))].sort((a, b) => a.localeCompare(b, "fr"))
   const enCours = rows.filter((m) => m.start <= today && today <= m.end)
 
-  // s8 — ce que les prestations Boond proposent et que le registre ignore.
-  const proposees = await chargePropositions()
+  // s8 — ce que les prestations Boond proposent et que le registre ignore,
+  // DANS LE PÉRIMÈTRE OBSERVÉ (a33).
+  const { perimetre } = await contextePerimetre()
+  const proposees = await chargePropositions(perimetre)
 
   const kpis = [
     { label: "Missions", value: rows.length, underline: "bg-jaune-doux" },

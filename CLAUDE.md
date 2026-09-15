@@ -395,6 +395,27 @@ l'ait vu. Même contrat que la synchro des personnes.
 Vérifié en navigateur réel : création à l'unité, la 2e proposition survit avec
 son signalement de recouvrement, rejeu de la même prestation → 409.
 
+**a33 (15/09) — reprise en main après retour de recette.** Trois garde-fous
+posés après un signalement de Sacha (« des chevauchements partout sur Paris,
+alors que le lot ne devait toucher que Bordeaux ») :
+- **plus de création en masse** : le bouton « tout créer » est retiré. Sur un
+  registre déjà complet, il pouvait le remplir de doublons d'un seul clic — le
+  coût d'une erreur y est sans commune mesure avec le temps gagné ;
+- **les propositions suivent le PÉRIMÈTRE observé** (`chargePropositions(perimetre)`) :
+  une liste parisienne n'a rien à faire sous les yeux de quelqu'un qui travaille
+  sur Bordeaux. C'est une liste de travail, pas un registre (les registres, eux,
+  restent complets) ;
+- **tout est rembobinable** : `scripts/annuler-propositions.ts` (répétition par
+  défaut, `--agence`, `--depuis`) supprime les missions créées depuis une
+  proposition — elles portent toutes la note « Prestation Boond … ». Une mission
+  SAISIE À LA MAIN n'a jamais cette note : elle ne peut pas être emportée.
+Diagnostic avant toute correction : `scripts/etat-des-lieux.ts` (lecture seule —
+missions créées par les propositions, chevauchements avec distinction
+« même client = doublon », volume de CRA et historique des synchros, bordelais
+sans mission couvrante, fiches issues d'un transfert) et
+`scripts/ca-decomposition.ts` (le CA recalculé sans les prestations, sans les
+bordelais, et sans l'un ni l'autre : l'écart de chaque cause, chiffré).
+
 ### Grade corrigeable au registre (a30, 15/09)
 
 Le Suivi_Effectif ne compte QUE les grades de la grille (fidèle à l'Excel) : un

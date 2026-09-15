@@ -11,7 +11,8 @@
 import { prisma } from "./prisma"
 import { toIsoDate } from "./staffing-load"
 import { propositions, type MissionExistante, type PrestationSource } from "./missions-proposees"
-import { PersonKind } from "./types"
+import { dansLePerimetre } from "./perimetre"
+import { Perimetre, PersonKind } from "./types"
 
 export interface PropositionAffichee {
   boondId: string
@@ -32,7 +33,7 @@ export interface PropositionAffichee {
   joursPointes: number
 }
 
-export async function chargePropositions(): Promise<{
+export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT): Promise<{
   liste: PropositionAffichee[]
   prestations: number
   sansRessource: number
@@ -51,6 +52,10 @@ export async function chargePropositions(): Promise<{
         resourceBoondId: true,
       },
     }),
+    // a33 — les propositions suivent le PÉRIMÈTRE observé. Le registre, lui,
+    // reste complet : mais une liste de propositions parisiennes n'a rien à
+    // faire sous les yeux de quelqu'un qui travaille sur Bordeaux, et
+    // inversement. C'est une liste de travail, pas un registre.
     prisma.person.findMany({
       where: { kind: PersonKind.CONSULTANT, active: true },
       select: { id: true, name: true, agency: true, boondId: true },
@@ -58,7 +63,11 @@ export async function chargePropositions(): Promise<{
     prisma.mission.findMany({ select: { personId: true, client: true, startDate: true, endDate: true } }),
   ])
 
-  const parBoondId = new Map(persons.filter((p) => p.boondId).map((p) => [p.boondId as string, p]))
+  const parBoondId = new Map(
+    persons
+      .filter((p) => p.boondId && dansLePerimetre(p.agency, perimetre))
+      .map((p) => [p.boondId as string, p])
+  )
   let sansRessource = 0
   let sansFiche = 0
 

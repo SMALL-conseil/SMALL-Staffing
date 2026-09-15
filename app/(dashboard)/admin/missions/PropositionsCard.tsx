@@ -36,11 +36,10 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
   const router = useRouter()
   const [enCours, setEnCours] = useState<string | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null)
-  const [confirmTout, setConfirmTout] = useState(false)
-  // « Tout créer » n'emporte que les propositions SANS recouvrement : une
-  // mission parallèle chez un autre client se crée à l'unité, en connaissance
-  // de cause.
-  const franches = propositions.filter((p) => !p.chevauche)
+  // a33 — PLUS DE CRÉATION EN MASSE. Un bouton « tout créer » sur un registre
+  // déjà complet (Paris) peut le remplir de doublons d'un seul clic : le coût
+  // d'une erreur y est sans commune mesure avec le temps gagné. Chaque mission
+  // se crée donc à l'unité, en ayant lu sa ligne.
 
   async function creer(boondIds: string[], etiquette: string) {
     setEnCours(etiquette)
@@ -65,7 +64,6 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
       setMessage({ ok: false, texte: "Appel impossible — vérifier la connexion" })
     }
     setEnCours(null)
-    setConfirmTout(false)
   }
 
   if (!prestations) {
@@ -86,28 +84,12 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
         <div>
           <h2 className="titre-section">Missions proposées par Boond</h2>
           <p className="text-[11.5px] text-label mt-1">
-            {prestations} prestation(s) connue(s) · {propositions.length} sans mission au registre
+            Périmètre observé · {prestations} prestation(s) connue(s) · {propositions.length} sans
+            mission au registre
             {sansFiche > 0 && ` · ${sansFiche} sur une ressource absente du registre`}
             {sansRessource > 0 && ` · ${sansRessource} sans ressource dans Boond`}
           </p>
         </div>
-        {franches.length > 1 && (
-          <button
-            type="button"
-            onClick={() =>
-              confirmTout ? creer(franches.map((p) => p.boondId), "tout") : setConfirmTout(true)
-            }
-            disabled={enCours !== null}
-            className={`btn ${confirmTout ? "btn-primary" : "btn-ghost"}`}
-            title="Les propositions qui chevauchent une mission existante sont exclues — à créer une par une"
-          >
-            {enCours === "tout"
-              ? "Création…"
-              : confirmTout
-                ? `Confirmer : créer les ${franches.length} ?`
-                : `Créer les ${franches.length} sans recouvrement`}
-          </button>
-        )}
       </div>
 
       {message && (
@@ -163,8 +145,9 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
 
       <p className="text-[11px] text-label mt-3">
         La part d&rsquo;intervention est <em>déduite</em> des jours vendus (survoler « Créer » pour
-        le détail) : Boond ne la porte pas. À corriger au registre si besoin — une mission créée
-        ici est une mission ordinaire, que la synchro ne réécrira jamais.
+        le détail) : Boond ne la porte pas. À corriger au registre si besoin. Une mission créée
+        ici porte la note « Prestation Boond … » : elle est donc annulable en bloc si l&rsquo;on
+        s&rsquo;est trompé (<code>scripts/annuler-propositions.ts</code>).
       </p>
     </div>
   )
