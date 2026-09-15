@@ -20,6 +20,8 @@
 //  Bordeaux.
 // ============================================================
 
+import { agenceEffective } from "./perimetre"
+
 /** Un maillon de la chaîne : une fiche datée d'une même personne. */
 export interface FicheChainon {
   id: string
@@ -86,6 +88,30 @@ export function ficheAuJour(
     return f.id
   }
   return porteuse.id
+}
+
+/**
+ * Une fiche ACTIVE dans Boond que la base croit PARTIE : deux histoires très
+ * différentes derrière le même symptôme.
+ *
+ *  · TRANSFERT — Boond la rattache à une AUTRE agence que celle de sa période :
+ *    elle n'a pas quitté SMALL, elle a changé de maison (Charlotte, Anaïs).
+ *  · DEPART_NON_CLOS — Boond la laisse dans la MÊME agence : elle est bien
+ *    partie, et c'est la fiche Boond qui n'a pas été clôturée (Mélanie).
+ *    Rien à faire dans l'app : le geste est dans BoondManager.
+ *
+ * La distinction se lit dans la donnée, elle ne se devine pas — et c'est elle
+ * qui empêche `--tous` d'expédier à Bordeaux quelqu'un qui est simplement parti.
+ */
+export type NatureEcart = "TRANSFERT" | "DEPART_NON_CLOS"
+
+export function natureEcart(
+  agenceCourante: string | null | undefined,
+  agenceOrigine: string
+): NatureEcart {
+  return agenceEffective(agenceCourante) === agenceEffective(agenceOrigine)
+    ? "DEPART_NON_CLOS"
+    : "TRANSFERT"
 }
 
 export interface Transfert {

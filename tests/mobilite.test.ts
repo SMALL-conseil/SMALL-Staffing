@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  natureEcart,
   chaineDe,
   ficheAuJour,
   lendemainDe,
@@ -106,5 +107,26 @@ describe("planifieTransfert — deux périodes JOINTIVES", () => {
       planifieTransfert({ ...base, departure: "2026-06-30", dateTransfert: "2025-11-15" })
     ).toThrow(/à trancher/)
     expect(() => planifieTransfert({ ...base, dateTransfert: "15/11/2025" })).toThrow(/invalide/)
+  })
+})
+
+describe("natureEcart (a29) — transfert ou départ réel ?", () => {
+  // Remarque de Sacha, 15/09 : trois candidats, mais Mélanie GOUY est
+  // simplement partie — Boond la laisse en agence « SMALL » (Paris), comme sa
+  // période. L'envoyer à Bordeaux fabriquerait une présence qui n'a jamais été.
+  it("Boond dans une AUTRE agence → transfert (Charlotte, Anaïs)", () => {
+    expect(natureEcart("BORDEAUX", "PARIS")).toBe("TRANSFERT")
+    expect(natureEcart("PARIS", "BORDEAUX")).toBe("TRANSFERT")
+  })
+  it("Boond dans la MÊME agence → départ réel, fiche Boond restée ouverte (Mélanie)", () => {
+    expect(natureEcart("PARIS", "PARIS")).toBe("DEPART_NON_CLOS")
+    expect(natureEcart("BORDEAUX", "BORDEAUX")).toBe("DEPART_NON_CLOS")
+  })
+  it("agence vide = « SMALL » sans ville = Paris par défaut → départ réel", () => {
+    // Le cas exact de Mélanie : le tenant ne dit pas la ville de l'agence
+    // parisienne, la colonne reste nulle — ce n'est pas un changement d'agence.
+    expect(natureEcart(null, "PARIS")).toBe("DEPART_NON_CLOS")
+    expect(natureEcart(undefined, "PARIS")).toBe("DEPART_NON_CLOS")
+    expect(natureEcart(null, "BORDEAUX")).toBe("TRANSFERT")
   })
 })

@@ -333,9 +333,17 @@ tests inchangés.
   `planifieTransfert()` refuse ce qui n'est pas un transfert (même agence,
   transfert antérieur à l'arrivée, départ postérieur au transfert).
 - **La synchro ne tranche JAMAIS toute seule** : une fiche active dans Boond que
-  la base croit partie est seulement signalée (`transfertsSuspectes`, visible sur
-  la carte de synchro). Réécrire une histoire sur une déduction serait pire que
-  le symptôme.
+  la base croit partie est seulement signalée, sur la carte de synchro. Réécrire
+  une histoire sur une déduction serait pire que le symptôme.
+- ⚠️ **a29 — le même symptôme recouvre DEUX histoires** (remarque de Sacha sur
+  Mélanie GOUY, qui est bien partie) : Boond la met dans une AUTRE agence =
+  transfert (`transfertsSuspectes`) ; Boond la laisse dans la MÊME = **départ
+  réel dont la fiche Boond n'a pas été close** (`departsNonClos`) — rien à faire
+  dans l'app, le geste est dans BoondManager, sans quoi elle reviendra à chaque
+  synchro. `natureEcart()` (pur, testé) porte la distinction, et `--tous` ne
+  prend QUE les transferts : un départ nommé explicitement est refusé, sauf
+  `--forcer`. Expédier un partant à Bordeaux fabriquerait une présence qui n'a
+  jamais existé.
 - Le geste : `npx tsx scripts/transfert.ts` (sans argument = liste les candidats,
   avec la date proposée), puis `… "Nom" --vers BORDEAUX [--le AAAA-MM-JJ]
   [--appliquer]`. Répétition par défaut. Missions, absences et jours sont

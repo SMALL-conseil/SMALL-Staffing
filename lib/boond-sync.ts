@@ -20,6 +20,8 @@
 import { prisma } from "./prisma"
 import type { Prisma, PrismaClient } from "@prisma/client"
 import { CONSULTANT_GRADES, PersonKind, SIEGE_GRADES } from "./types"
+import { natureEcart } from "./mobilite"
+import { AGENCE_PAR_DEFAUT } from "./perimetre"
 import {
   extractPerson,
   indexIncluded,
@@ -79,10 +81,16 @@ export interface SyncReport {
   activesSansTaux: string[]
   kindConflicts: string[]
   departuresSet: { name: string; date: string }[]
-  /** s7 — fiches ACTIVES dans Boond que la base croit parties : signature
-   *  d'un transfert d'agence (le classeur Paris comptait un départ dès qu'on
-   *  quittait Paris). Signalées, jamais tranchées par la synchro. */
+  /** s7/a29 — fiches ACTIVES dans Boond que la base croit parties, quand Boond
+   *  les rattache à une AUTRE agence : signature d'un transfert (le classeur
+   *  Paris comptait un départ dès qu'on quittait Paris). Signalées, jamais
+   *  tranchées par la synchro. */
   transfertsSuspectes: string[]
+  /** a29 — même symptôme, MÊME agence : la personne est bien partie et c'est la
+   *  fiche Boond qui n'a pas été close. Rien à faire dans l'app — le geste est
+   *  dans BoondManager. Distinguer les deux évite d'expédier un partant dans
+   *  une agence où il n'a jamais mis les pieds. */
+  departsNonClos: string[]
   absentsDuFlux: string[]
   nonRapproches: number
   errors: string[]
@@ -95,7 +103,7 @@ function emptyReport(received: number, pages: number, jeton: string): SyncReport
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
     ratesSet: 0, activesSansTaux: [], agencesSet: 0, sansAgence: [], sansAgenceBoond: 0,
-    kindConflicts: [], departuresSet: [], transfertsSuspectes: [],
+    kindConflicts: [], departuresSet: [], transfertsSuspectes: [], departsNonClos: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
 }
@@ -352,11 +360,17 @@ export async function runBoondSync(
       // histoire sur une déduction serait pire que le symptôme : le siège
       // arbitre, avec `npx tsx scripts/transfert.ts`.
       if (!p.departure && person.departureDate) {
-        report.transfertsSuspectes.push(
+        const ligne =
           `${p.name} : partie le ${person.departureDate.toISOString().slice(0, 10)} en base, ` +
-            `ACTIVE dans Boond (état ${p.state ?? "?"}` +
-            `${p.agencyRaw ? `, agence « ${p.agencyRaw} »` : ""}) — transfert d'agence ?`
-        )
+          `ACTIVE dans Boond (état ${p.state ?? "?"}` +
+          `${p.agencyRaw ? `, agence « ${p.agencyRaw} »` : ""})`
+        // a29 — l'agence tranche : une AUTRE agence = transfert ; la MÊME =
+        // départ réel dont la fiche Boond n'a pas été close.
+        if (natureEcart(p.agency, AGENCE_PAR_DEFAUT) === "TRANSFERT") {
+          report.transfertsSuspectes.push(`${ligne} — transfert d'agence ?`)
+        } else {
+          report.departsNonClos.push(`${ligne} — fiche à clore dans BoondManager`)
+        }
       }
 
       await db.person.update({ where: { id: person.id }, data: data as never })

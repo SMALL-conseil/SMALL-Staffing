@@ -10,11 +10,18 @@
 //  RÉPÉTITION PAR DÉFAUT : rien n'est écrit sans --appliquer.
 //
 //  Sans argument, le script propose les CANDIDATS : les fiches que la base
-//  croit parties alors que Boond les dit actives. C'est la signature d'un
-//  transfert — le classeur « Staffing SMALL Paris » enregistrait un départ dès
-//  qu'on quittait Paris, et sa date de départ EST la date du transfert. Le
-//  script la reprend par défaut (le lendemain du départ enregistré) : aucune
-//  date à retrouver.
+//  croit parties alors que Boond les dit actives. Le classeur « Staffing SMALL
+//  Paris » enregistrait un départ dès qu'on quittait Paris, et cette date EST
+//  celle du transfert — le script la reprend (lendemain du départ enregistré).
+//
+//  ⚠️ MAIS le même symptôme recouvre DEUX histoires, et le script ne les
+//  confond pas (a29, remarque de Sacha sur Mélanie GOUY) :
+//   · Boond la rattache à une AUTRE agence → TRANSFERT ;
+//   · Boond la laisse dans la MÊME agence → elle est bien PARTIE, et c'est la
+//     fiche Boond qui n'a pas été close. Rien à faire ici : le geste est dans
+//     BoondManager. Ces fiches-là sont listées à part et `--tous` NE LES PREND
+//     PAS (il faudrait les nommer et ajouter --forcer, ce qui est presque
+//     toujours une erreur).
 //
 //  Ce qui bouge :
 //   · la fiche existante devient la période D'ORIGINE : agence d'avant, départ
@@ -29,7 +36,7 @@
 // ============================================================
 import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
-import { lendemainDe, planifieTransfert } from "../lib/mobilite"
+import { lendemainDe, natureEcart, planifieTransfert } from "../lib/mobilite"
 
 const prisma = new PrismaClient()
 const AGENCES = ["PARIS", "BORDEAUX"]
@@ -65,48 +72,79 @@ async function main() {
   const le = arg("--le")
   const noms = process.argv
     .slice(2)
-    .filter((a, i, t) => !a.startsWith("--") && !(i > 0 && ["--vers", "--le"].includes(t[i - 1])))
+    .filter(
+      (a, i, t) => !a.startsWith("--") && !(i > 0 && ["--vers", "--le", "--depuis"].includes(t[i - 1]))
+    )
 
   const liste = await candidats()
+  const origine = (arg("--depuis") ?? "PARIS").toUpperCase()
+  const ligne = (c: (typeof liste)[number]) =>
+    `  ${c.name.padEnd(28)} ${c.kind.padEnd(10)} agence Boond ${String(c.agency ?? "— (Paris)").padEnd(12)}` +
+    ` arrivée ${iso(c.arrivalDate)} · départ ${iso(c.departureDate)} · état Boond ${c.boondState}`
+
+  const transferts = liste.filter((c) => natureEcart(c.agency, origine) === "TRANSFERT")
+  const departs = liste.filter((c) => natureEcart(c.agency, origine) === "DEPART_NON_CLOS")
 
   if (!noms.length && !tous) {
-    console.log(`Candidats au transfert — ${liste.length} fiche(s)`)
-    console.log("(parties en base, ACTIVES dans Boond : signature d'un changement d'agence)\n")
-    for (const c of liste) {
-      console.log(
-        `  ${c.name.padEnd(28)} ${c.kind.padEnd(10)} agence ${String(c.agency ?? "—").padEnd(10)}` +
-          ` arrivée ${iso(c.arrivalDate)} · départ ${iso(c.departureDate)} · état Boond ${c.boondState}`
-      )
+    console.log(`Fiches ACTIVES dans Boond que la base croit parties — ${liste.length}\n`)
+    console.log(`TRANSFERTS probables (Boond les rattache à une autre agence que ${origine}) — ${transferts.length}`)
+    for (const c of transferts) {
+      console.log(ligne(c))
       console.log(
         `      → transfert proposé le ${lendemainDe(iso(c.departureDate) as string)}` +
           ` (lendemain du départ enregistré)`
       )
     }
-    if (!liste.length) console.log("  (aucun)")
+    if (!transferts.length) console.log("  (aucun)")
+
     console.log(
-      `\n→ npx tsx scripts/transfert.ts "${liste[0]?.name ?? "Nom Prénom"}" --vers BORDEAUX` +
-        `\n  (ajouter --le AAAA-MM-JJ pour forcer une autre date, --appliquer pour écrire,` +
-        `\n   --tous pour traiter tous les candidats d'un coup)`
+      `\nDÉPARTS RÉELS probables (même agence des deux côtés) — ${departs.length}` +
+        `\n(rien à faire dans l'app : ces fiches sont à CLORE dans BoondManager,` +
+        `\n sans quoi elles reviendront à chaque synchro)`
+    )
+    for (const c of departs) console.log(ligne(c))
+    if (!departs.length) console.log("  (aucun)")
+
+    console.log(
+      `\n→ npx tsx scripts/transfert.ts "${transferts[0]?.name ?? "Nom Prénom"}" --vers BORDEAUX` +
+        `\n  (--le AAAA-MM-JJ pour forcer une autre date, --appliquer pour écrire,` +
+        `\n   --tous pour traiter tous les TRANSFERTS d'un coup — jamais les départs)`
     )
     return
   }
 
   if (!AGENCES.includes(vers)) throw new ErreurUtilisateur(`--vers attend ${AGENCES.join(" ou ")}.`)
 
+  // `--tous` ne prend QUE les transferts. Un départ réel nommé explicitement
+  // est refusé, sauf --forcer : envoyer à Bordeaux quelqu'un qui a quitté SMALL
+  // fabriquerait une présence qui n'a jamais existé.
+  const forcer = process.argv.includes("--forcer")
   const cibles = tous
-    ? liste
+    ? transferts
     : liste.filter((c) => noms.some((n) => c.name.toLowerCase().includes(n.toLowerCase())))
   if (!cibles.length) {
-    const inconnus = noms.join(", ")
     throw new ErreurUtilisateur(
-      `Aucun candidat ne correspond à : ${inconnus}\n` +
-        `  (lancer le script sans argument pour voir la liste des candidats)`
+      tous
+        ? `Aucun transfert à traiter vers « ${vers} ».`
+        : `Aucun candidat ne correspond à : ${noms.join(", ")}\n` +
+          `  (lancer le script sans argument pour voir la liste des candidats)`
     )
   }
 
   console.log(`${appliquer ? "ÉCRITURE" : "RÉPÉTITION (rien n'est écrit)"} — transfert vers « ${vers} »\n`)
 
-  for (const c of cibles) {
+  const refuses = forcer ? [] : cibles.filter((c) => natureEcart(c.agency, origine) === "DEPART_NON_CLOS")
+  for (const r of refuses) {
+    console.log(
+      `  ✗ ${r.name} : Boond la laisse en agence ${r.agency ?? "« SMALL » (Paris)"}, comme sa période —` +
+        `\n      c'est un DÉPART, pas un transfert. Rien à écrire ici : clore sa fiche dans` +
+        `\n      BoondManager. (--forcer pour passer outre, en connaissance de cause.)`
+    )
+  }
+  const retenues = cibles.filter((c) => !refuses.includes(c))
+  let ecrits = 0
+
+  for (const c of retenues) {
     const depart = iso(c.departureDate) as string
     const dateTransfert = le ?? lendemainDe(depart)
     const agenceAvant = c.agency && c.agency !== vers ? c.agency : vers === "BORDEAUX" ? "PARIS" : "BORDEAUX"
@@ -209,15 +247,21 @@ async function main() {
       // 4. Les managées suivent la fiche en cours (le lien hiérarchique est vivant).
       await tx.person.updateMany({ where: { managerId: source.id }, data: { managerId: courante.id } })
     })
+    ecrits++
     console.log(`      ✔ transfert écrit.`)
   }
 
-  if (!appliquer) console.log("\n→ Relancer avec --appliquer pour écrire.")
-  else
+  if (!appliquer) {
+    if (retenues.length) console.log("\n→ Relancer avec --appliquer pour écrire.")
+  } else if (ecrits) {
     console.log(
-      "\nPenser à recharger les jours de CRA (les jours antérieurs au transfert" +
-        "\nse rattacheront alors d'eux-mêmes à la période d'origine)."
+      `\n${ecrits} transfert(s) écrit(s). Penser à recharger les jours de CRA :` +
+        "\nles jours antérieurs au transfert se rattacheront alors d'eux-mêmes" +
+        "\nà la période d'origine."
     )
+  } else {
+    console.log("\nRien n'a été écrit.")
+  }
 }
 
 main()

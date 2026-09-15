@@ -139,8 +139,12 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
                 </p>
               )}
               {liste(
-                "Active dans Boond mais partie en base — transfert d'agence ? (scripts/transfert.ts)",
+                "Active dans Boond, partie en base, AUTRE agence — transfert ? (scripts/transfert.ts)",
                 report.transfertsSuspectes ?? []
+              )}
+              {liste(
+                "Active dans Boond, partie en base, MÊME agence — fiche à clore dans BoondManager",
+                report.departsNonClos ?? []
               )}
               {liste("Départs posés", (report.departuresSet ?? []).map((d) => `${d.name} → ${d.date}`))}
               {liste("Inactifs Boond — ignorés", (report.skippedInactive ?? []).map((s) => `${s.name} (état ${s.state ?? "?"})`))}
