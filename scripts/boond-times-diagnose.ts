@@ -122,7 +122,7 @@ async function main() {
   } else {
     const reel = caParClientReel(missions, jours, year, today)
     console.log(
-      `  MODE RÉEL+CONVENTION · total ${eur(reel.total)} (réel ${eur(reel.caReel)} jusqu'au mois ${reel.moisReelMax} · convention ${eur(reel.caConvention)})`
+      `  MODE RÉEL+CONVENTION · total ${eur(reel.total)} (réel ${eur(reel.caReel)} jusqu'au mois ${reel.moisReelMax} · convention ${eur(reel.caVenduRestant)})`
     )
     for (const e of reel.entries) console.log(`    ${e.client} : ${eur(e.ca)}`)
     console.log(`  jours de production SANS mission couvrante : ${reel.joursSansMission} j`)

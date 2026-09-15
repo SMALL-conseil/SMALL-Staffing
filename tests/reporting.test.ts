@@ -88,21 +88,82 @@ describe("CA réel par client (a12 — jours CRA × honoraires)", () => {
     ...over,
   })
 
-  it("année en cours : mois écoulés au réel, mois courant à la convention", () => {
-    // TODAY = 2026-08-11 → réel janv–juil, convention pour août seul.
+  it("s9 — le RÉALISÉ va jusqu'à aujourd'hui, le mois en cours compris", () => {
+    // TODAY = 2026-08-11 : les jours d'août déjà pointés comptent, ceux
+    // d'après aujourd'hui non (ils n'existent pas encore).
     const missions = [m({ client: "GROUPAMA", fees: 1000 })]
     const jours = [
       j({ date: "2026-03-10" }),
       j({ date: "2026-03-11", duration: 0.5 }),
-      j({ date: "2026-08-03" }), // mois courant → IGNORÉ au réel (convention)
+      j({ date: "2026-08-03" }), // mois COURANT, déjà pointé → compté
+      j({ date: "2026-08-25" }), // postérieur à aujourd'hui → ignoré
     ]
     const out = caParClientReel(missions, jours, 2026, TODAY)
-    expect(out.caReel).toBeCloseTo(1.5 * 1000, 5)
-    expect(out.caConvention).toBeCloseTo(1000 * 1 * (218 / 12), 5) // août seul
-    expect(out.total).toBeCloseTo(out.caReel + out.caConvention, 5)
-    expect(out.moisReelMax).toBe(7)
+    expect(out.caReel).toBeCloseTo(2.5 * 1000, 5)
+    expect(out.caVenduRestant).toBe(0) // aucune prestation fournie
+    expect(out.realiseJusquau).toBe(TODAY)
     expect(out.entries).toHaveLength(1)
-    expect(out.entries[0].ca).toBeCloseTo(out.total, 5)
+  })
+
+  it("s9 — le VENDU RESTANT remplace la convention : jours ouvrés d'ici la fin du mois", () => {
+    // TODAY = 2026-08-11 (mardi). Prestation du 01/01 au 31/12 à 1000 €/j :
+    // du 11 au 31 août, il reste 15 jours ouvrés (aucun férié en août).
+    const missions = [m({ client: "GROUPAMA", fees: 1000 })]
+    const presta = {
+      boondId: "d1",
+      personId: "p1",
+      client: "Groupama",
+      start: "2026-01-01",
+      end: "2026-12-31",
+      dailyRate: 1000,
+      daysSold: null,
+    }
+    const out = caParClientReel(missions, [], 2026, TODAY, [presta])
+    expect(out.joursVenduRestant).toBe(15)
+    expect(out.caVenduRestant).toBeCloseTo(15 * 1000, 5)
+    // Le libellé suit la MISSION (les couleurs de marque y sont adossées).
+    expect(out.entries[0].client).toBe("GROUPAMA")
+  })
+
+  it("s9 — ce qui est déjà pointé sur la fenêtre n'est pas compté deux fois", () => {
+    const missions = [m({ client: "GROUPAMA", fees: 1000 })]
+    const presta = {
+      boondId: "d1", personId: "p1", client: "Groupama",
+      start: "2026-01-01", end: "2026-12-31", dailyRate: 1000, daysSold: null,
+    }
+    const jours = [
+      j({ date: "2026-08-11", deliveryBoondId: "d1" }),
+      j({ date: "2026-08-12", deliveryBoondId: "d1" }),
+    ]
+    const out = caParClientReel(missions, jours, 2026, TODAY, [presta])
+    expect(out.joursVenduRestant).toBe(13) // 15 − 2 déjà pointés
+    expect(out.caReel).toBeCloseTo(1000, 5) // seul le 11 est ≤ aujourd'hui
+  })
+
+  it("s9 — le CONTRAT plafonne : on ne vend pas plus que ce qui a été vendu", () => {
+    const missions = [m({ client: "GROUPAMA", fees: 1000 })]
+    const presta = {
+      boondId: "d1", personId: "p1", client: "Groupama",
+      start: "2026-01-01", end: "2026-12-31", dailyRate: 1000, daysSold: 100,
+    }
+    // 96 jours déjà consommés sur 100 vendus → il n'en reste que 4.
+    const jours = Array.from({ length: 96 }, (_, i) =>
+      j({ date: `2026-0${1 + Math.floor(i / 20)}-${String((i % 20) + 1).padStart(2, "0")}`, deliveryBoondId: "d1" })
+    )
+    const out = caParClientReel(missions, jours, 2026, TODAY, [presta])
+    expect(out.joursVenduRestant).toBe(4)
+  })
+
+  it("s9 — une absence prolongée n'est pas du temps vendable", () => {
+    const missions = [m({ client: "GROUPAMA", fees: 1000 })]
+    const presta = {
+      boondId: "d1", personId: "p1", client: "Groupama",
+      start: "2026-01-01", end: "2026-12-31", dailyRate: 1000, daysSold: null,
+    }
+    const out = caParClientReel(missions, [], 2026, TODAY, [presta], [
+      { personId: "p1", start: "2026-08-17", end: "2026-08-21" }, // une semaine
+    ])
+    expect(out.joursVenduRestant).toBe(10) // 15 − 5
   })
 
   it("départage multi-missions par le client Boond, sinon 1re mission (rank)", () => {
@@ -115,12 +176,8 @@ describe("CA réel par client (a12 — jours CRA × honoraires)", () => {
       j({ date: "2026-04-02" }), // pas de client Boond → 1re mission
     ]
     const out = caParClientReel(missions, jours, 2026, TODAY)
-    expect(out.entries.find((e) => e.client === "ACCOR")?.ca).toBeCloseTo(
-      2000 * 1 + 2000 * 1 * (218 / 12), 5 // 1 jour réel + convention août
-    )
-    expect(out.entries.find((e) => e.client === "GROUPAMA")?.ca).toBeCloseTo(
-      1000 * 1 + 1000 * 1 * (218 / 12), 5
-    )
+    expect(out.entries.find((e) => e.client === "ACCOR")?.ca).toBeCloseTo(2000 * 1, 5)
+    expect(out.entries.find((e) => e.client === "GROUPAMA")?.ca).toBeCloseTo(1000 * 1, 5)
   })
 
   it("jour sans mission couvrante → compté « sans mission » ; mission sans fees → signalée", () => {
@@ -140,17 +197,18 @@ describe("CA réel par client (a12 — jours CRA × honoraires)", () => {
     const jours = [j({ date: "2025-11-03" }), j({ date: "2025-12-01" })]
     const out = caParClientReel(missions, jours, 2025, TODAY)
     expect(out.caReel).toBeCloseTo(2 * 900, 5)
-    expect(out.caConvention).toBe(0)
+    expect(out.caVenduRestant).toBe(0) // un mois clos n'a plus de reste à vendre
     expect(out.moisReelMax).toBe(12)
   })
 
-  it("année future : entièrement conventionnelle (identique à caParClient)", () => {
+  it("s9 — année future : rien. Ni réalisé, ni vendu (aucune prestation n'y court)", () => {
+    // La convention 218/12 remplissait autrefois une année future d'un CA
+    // entièrement supposé. On préfère un écran vide à un chiffre inventé.
     const missions = [m({ client: "SUEZ", fees: 1200, start: "2027-01-01", end: "2027-03-31" })]
     const out = caParClientReel(missions, [], 2027, TODAY)
-    const conv = caParClient(missions, 2027, TODAY)
     expect(out.moisReelMax).toBe(0)
-    expect(out.total).toBeCloseTo(conv.total, 5)
-    expect(out.entries).toEqual(conv.entries)
+    expect(out.total).toBe(0)
+    expect(out.entries).toEqual([])
   })
 })
 

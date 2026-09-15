@@ -188,6 +188,34 @@ Signaux : missions sans honoraires (exclues), jours de production sans mission
 dans l'app. Sans jours synchronisés : convention seule (comportement pré-a12).
 Couleurs de marque : `lib/client-brand.ts` ; logos : `public/logos/<slug>.png`.
 
+### CA : réalisé + vendu restant (s9, 15/09) — la convention 218/12 est morte
+
+Demande de Sacha : « le réalisé + le vendu restant sur le mois », au jour le
+jour, sans rapprochement fait main. Le donut vaut désormais :
+
+- **RÉALISÉ** — tous les jours de CRA pointés **jusqu'à aujourd'hui inclus**
+  (le mois en cours compte donc pour ce qui est déjà saisi, au lieu d'être
+  ignoré au profit d'une convention) × leur taux : TJM VENDU de la prestation,
+  sinon la cascade a17 ;
+- **VENDU RESTANT** — les jours **ouvrés** d'aujourd'hui à la fin du mois
+  couverts par une PRESTATION Boond, à son TJM vendu, **moins** ce qui y est
+  déjà pointé, **plafonné par le contrat** (jours vendus − jours consommés) et
+  diminué des **absences prolongées** connues.
+
+Plus aucun `218/12`, plus aucune part d'intervention estimée : les deux nombres
+sont de la donnée — le CRA d'un côté, le contrat de l'autre. Une **année
+future** ne montre donc plus rien (mieux vaut un écran vide qu'un chiffre
+entièrement supposé) et une **année passée** est 100 % réelle.
+
+⚠️ Limite assumée : les **congés ordinaires à venir** dans le mois ne sont pas
+connus de l'app (seules les absences PROLONGÉES le sont) — le plafond du
+contrat les absorbe en partie, pas toujours. Une prestation **entièrement
+future** reste invisible : elles s'énumèrent par les CRA, le listing
+`/deliveries` répondant 405.
+
+Testé dans `tests/reporting.test.ts` (fenêtre du mois, déjà-pointé non compté
+deux fois, plafond du contrat, absence prolongée) et vérifié en navigateur réel.
+
 ### Périmètres : agences Paris / Bordeaux (s5)
 
 Une PERSONNE porte une agence (`Person.agency` : « PARIS » | « BORDEAUX »,

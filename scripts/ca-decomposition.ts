@@ -22,7 +22,13 @@ import "dotenv/config"
 import { prisma } from "../lib/prisma"
 import { toIsoDate } from "../lib/staffing-load"
 import { todayParis } from "../lib/staffing-ui"
-import { caParClientReel, type ReportingJour, type ReportingMission } from "../lib/reporting"
+import {
+  caParClientReel,
+  type PrestationEnCours,
+  type ReportingAbsence,
+  type ReportingJour,
+  type ReportingMission,
+} from "../lib/reporting"
 import { Agency } from "../lib/types"
 
 const eur = (n: number) =>
@@ -52,8 +58,40 @@ async function main() {
         person: { select: { name: true, agency: true, arrivalDate: true, departureDate: true } },
       },
     }),
-    prisma.delivery.findMany({ select: { boondId: true, dailyRate: true, clientName: true } }),
+    prisma.delivery.findMany({
+      select: {
+        boondId: true, dailyRate: true, clientName: true, daysSold: true,
+        startDate: true, endDate: true, resourceBoondId: true,
+      },
+    }),
   ])
+
+  // s9 — carnet de commandes : les prestations rattachées à une fiche du registre.
+  const fiches = await prisma.person.findMany({
+    where: { boondId: { not: null }, active: true },
+    select: { id: true, boondId: true },
+  })
+  const parBoondId = new Map(fiches.map((f) => [f.boondId as string, f.id]))
+  const enCours: PrestationEnCours[] = prestations.flatMap((d) => {
+    const personId = d.resourceBoondId ? parBoondId.get(d.resourceBoondId) : undefined
+    if (!personId || !d.startDate || !d.endDate) return []
+    return [{
+      boondId: d.boondId,
+      personId,
+      client: d.clientName,
+      start: toIsoDate(d.startDate),
+      end: toIsoDate(d.endDate),
+      dailyRate: d.dailyRate,
+      daysSold: d.daysSold,
+    }]
+  })
+  const absences: ReportingAbsence[] = (
+    await prisma.longAbsence.findMany({ select: { personId: true, startDate: true, endDate: true } })
+  ).map((a) => ({
+    personId: a.personId,
+    start: toIsoDate(a.startDate),
+    end: a.endDate ? toIsoDate(a.endDate) : null,
+  }))
 
   if (!joursDb.length) {
     console.log(`Aucun jour de production en ${year}.`)
@@ -76,6 +114,7 @@ async function main() {
     duration: j.duration,
     clientName: j.clientName,
     dailyRate: j.deliveryBoondId ? (tjm.get(j.deliveryBoondId) ?? null) : null,
+    deliveryBoondId: j.deliveryBoondId,
   }))
   const bordelais = new Set(
     joursDb.filter((j) => j.person.agency === Agency.BORDEAUX).map((j) => j.personId)
@@ -83,7 +122,7 @@ async function main() {
 
   // ---------------------------------------------------------------- 1. Écarts
   titre(`CA ${year} — d'où vient le montant`)
-  const aujourdhui = caParClientReel(missions, jours, year, today)
+  const aujourdhui = caParClientReel(missions, jours, year, today, enCours, absences)
   const sansPrestations = caParClientReel(
     missions,
     jours.map((j) => ({ ...j, dailyRate: null })),
@@ -94,7 +133,9 @@ async function main() {
     missions,
     jours.filter((j) => !bordelais.has(j.personId)),
     year,
-    today
+    today,
+    enCours.filter((p) => !bordelais.has(p.personId)),
+    absences
   )
   const avantTout = caParClientReel(
     missions,
@@ -105,9 +146,11 @@ async function main() {
 
   console.log(`  Aujourd'hui                                  ${eur(aujourdhui.total).padStart(14)}`)
   console.log(
-    `    dont réel (janv → mois ${String(aujourdhui.moisReelMax).padStart(2)})              ${eur(aujourdhui.caReel).padStart(14)}`
+    `    dont RÉALISÉ (jusqu'au ${aujourdhui.realiseJusquau})       ${eur(aujourdhui.caReel).padStart(14)}`
   )
-  console.log(`    dont convention (mois courant)             ${eur(aujourdhui.caConvention).padStart(14)}`)
+  console.log(
+    `    dont VENDU RESTANT sur le mois (${String(aujourdhui.joursVenduRestant).padStart(6)} j)  ${eur(aujourdhui.caVenduRestant).padStart(14)}`
+  )
   console.log(
     `\n  Sans les prestations (cascade seule, avant s6)${eur(sansPrestations.total).padStart(14)}` +
       `   écart ${eur(aujourdhui.total - sansPrestations.total)}`
@@ -131,7 +174,7 @@ async function main() {
   const parMois = new Map<string, { jours: number; ca: number }>()
   for (const j of jours) {
     const mois = j.date.slice(0, 7)
-    if (Number(mois.slice(5, 7)) > aujourdhui.moisReelMax) continue
+    if (j.date > aujourdhui.realiseJusquau) continue
     const taux =
       j.dailyRate ??
       (() => {
@@ -155,7 +198,7 @@ async function main() {
   const parAgence = new Map<string, { jours: number; ca: number }>()
   for (const j of joursDb) {
     const d = toIsoDate(j.date)
-    if (Number(d.slice(5, 7)) > aujourdhui.moisReelMax || !d.startsWith(`${year}-`)) continue
+    if (d > aujourdhui.realiseJusquau || !d.startsWith(`${year}-`)) continue
     const tjmJour =
       (j.deliveryBoondId ? tjm.get(j.deliveryBoondId) : null) ??
       (() => {
@@ -235,7 +278,7 @@ async function main() {
       const parPresta = new Map<string, { tjm: number; jours: number; client: string; qui: Set<string> }>()
       for (const j of joursDb) {
         const d = toIsoDate(j.date)
-        if (!d.startsWith(`${year}-`) || Number(d.slice(5, 7)) > aujourdhui.moisReelMax) continue
+        if (!d.startsWith(`${year}-`) || d > aujourdhui.realiseJusquau) continue
         const t = j.deliveryBoondId ? tjm.get(j.deliveryBoondId) : null
         if (!t || t <= 2000) continue
         const cle = String(j.deliveryBoondId)
@@ -281,9 +324,9 @@ async function main() {
   console.log(`  Jours sans TJM de prestation (retombés sur la cascade) : ${jr(sansTaux.reduce((n, j) => n + j.duration, 0))}`)
 
   console.log(
-    `\n  Rappel de la convention : les mois ÉCOULÉS sont au réel, le mois courant` +
-      `\n  est conventionnel (honoraires × 218/12). Un CA annuel « attendu » se compare` +
-      `\n  donc à ce total-ci, pas à une extrapolation sur 12 mois.`
+    `\n  Convention SUPPRIMÉE (s9) : le total = RÉALISÉ (jours pointés jusqu'à` +
+      `\n  aujourd'hui) + VENDU RESTANT (jours ouvrés d'ici la fin du mois couverts` +
+      `\n  par une prestation, plafonnés par le contrat). Aucun 218/12.`
   )
 }
 

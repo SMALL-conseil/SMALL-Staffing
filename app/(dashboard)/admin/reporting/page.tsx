@@ -13,6 +13,8 @@ import {
   consultantsParClient,
   JOURS_FACTURES_PAR_AN,
   replierAutres,
+  type PrestationEnCours,
+  type ReportingAbsence,
   type ReportingJour,
   type ReportingMission,
 } from "@/lib/reporting"
@@ -78,7 +80,10 @@ export default async function ReportingPage({
   ).filter((j) => dansLePerimetre(j.person.agency, perimetre))
   // TJM VENDU des prestations Boond (s6) — c'est lui qui valorise chaque jour.
   const prestations = await prisma.delivery.findMany({
-    select: { boondId: true, dailyRate: true },
+    select: {
+      boondId: true, dailyRate: true, daysSold: true,
+      startDate: true, endDate: true, clientName: true, resourceBoondId: true,
+    },
   })
   const tjmParPrestation = new Map(prestations.map((d) => [d.boondId, d.dailyRate]))
   const jours: ReportingJour[] = joursDb.map((j) => ({
@@ -87,13 +92,56 @@ export default async function ReportingPage({
     duration: j.duration,
     clientName: j.clientName,
     dailyRate: j.deliveryBoondId ? (tjmParPrestation.get(j.deliveryBoondId) ?? null) : null,
+    deliveryBoondId: j.deliveryBoondId,
   }))
+
+  // s9 — CARNET DE COMMANDES : ce qui reste VENDU sur le mois en cours, en
+  // remplacement de la convention 218/12. Une prestation ne compte que si sa
+  // ressource correspond à une fiche DU PÉRIMÈTRE observé.
+  const fichesParBoondId = new Map(
+    (
+      await prisma.person.findMany({
+        where: { boondId: { not: null }, active: true },
+        select: { id: true, boondId: true, agency: true },
+      })
+    )
+      .filter((p) => dansLePerimetre(p.agency, perimetre))
+      .map((p) => [p.boondId as string, p.id])
+  )
+  const enCours: PrestationEnCours[] = prestations.flatMap((d) => {
+    const personId = d.resourceBoondId ? fichesParBoondId.get(d.resourceBoondId) : undefined
+    if (!personId || !d.startDate || !d.endDate) return []
+    return [{
+      boondId: d.boondId,
+      personId,
+      client: d.clientName,
+      start: toIsoDate(d.startDate),
+      end: toIsoDate(d.endDate),
+      dailyRate: d.dailyRate,
+      daysSold: d.daysSold,
+    }]
+  })
+  const absences: ReportingAbsence[] = (
+    await prisma.longAbsence.findMany({ select: { personId: true, startDate: true, endDate: true } })
+  ).map((a) => ({
+    personId: a.personId,
+    start: toIsoDate(a.startDate),
+    end: a.endDate ? toIsoDate(a.endDate) : null,
+  }))
+
+  // Dernier jour du mois en cours, en toutes lettres (« 30 septembre ») — le
+  // mois n'a pas toujours 31 jours, et une légende fausse discrédite le reste.
+  const dernierJourDuMois = new Date(
+    Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)
+  ).getUTCDate()
+  const finDuMoisCourant = `${dernierJourDuMois} ${MOIS_LONGS[Number(today.slice(5, 7)) - 1].toLowerCase()}`
 
   const parClient = consultantsParClient(missions, today)
   const totalConsultants = parClient.reduce((n, c) => n + c.consultants, 0)
   // Jours réels disponibles → CA mêlant réel (mois écoulés) et convention ;
   // sinon (jamais synchronisé) : convention seule, comme avant a12.
-  const reel = jours.length > 0 ? caParClientReel(missions, jours, year, today) : null
+  const reel =
+    jours.length > 0 ? caParClientReel(missions, jours, year, today, enCours, absences) : null
   const ca = reel ?? caParClient(missions, year, today)
 
   // Dernier passage de la synchro des jours + configuration Boond.
@@ -192,16 +240,17 @@ export default async function ReportingPage({
         <div className="flex items-baseline justify-between gap-4 flex-wrap">
           <h2 className="titre-section">Chiffre d&rsquo;affaires par client — {year}</h2>
           {year > currentYear && <span className="tag tag-attente">prévisionnel</span>}
-          {reel && reel.moisReelMax > 0 && <span className="tag tag-ok">réel CRA</span>}
+          {reel && reel.caReel > 0 && <span className="tag tag-ok">réel CRA</span>}
         </div>
         <p className="text-[11.5px] text-label mt-1 mb-4">
           {!reel
             ? `Convention (jours CRA non synchronisés) : honoraires (€/jour) × mois de mission sur ${year}${year === currentYear ? " (arrêtés au mois courant)" : ""} × ${JOURS_FACTURES_PAR_AN}/12 — part d'intervention non pondérée.`
-            : reel.moisReelMax === 0
-              ? `Convention : honoraires (€/jour) × mois de mission sur ${year} × ${JOURS_FACTURES_PAR_AN}/12 — part d'intervention non pondérée.`
-              : year === currentYear
-                ? `Réel CRA de janvier à ${MOIS_LONGS[reel.moisReelMax - 1]} (jours de production × honoraires €/jour) : ${fmtCa(reel.caReel)} · convention ${JOURS_FACTURES_PAR_AN}/12 pour ${MOIS_LONGS[Number(today.slice(5, 7)) - 1]} : ${fmtCa(reel.caConvention)}.`
-                : `Réel CRA sur les 12 mois de ${year} : jours de production × honoraires (€/jour) des missions.`}
+            : year === currentYear
+              ? `RÉALISÉ du 1er janvier à aujourd'hui (jours de CRA réellement pointés) : ${fmtCa(reel.caReel)}` +
+                (reel.caVenduRestant > 0
+                  ? ` · VENDU RESTANT d'ici au ${finDuMoisCourant} (${reel.joursVenduRestant.toLocaleString("fr-FR")} jours ouvrés couverts par une prestation, plafonnés par le contrat) : ${fmtCa(reel.caVenduRestant)}.`
+                  : ` · aucun jour vendu restant sur le mois.`)
+              : `Réel CRA sur les 12 mois de ${year} : jours de production × leur taux journalier.`}
           {reel && reel.joursAuTjmPrestation > 0
             ? ` Taux journalier : TJM VENDU de la prestation Boond (${reel.joursAuTjmPrestation.toLocaleString("fr-FR")} j valorisés ainsi)` +
               (reel.joursALaCascade > 0
