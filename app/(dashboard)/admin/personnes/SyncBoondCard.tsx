@@ -130,7 +130,13 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
               {liste("Conflits consultant/siège — non modifiés", report.kindConflicts ?? [])}
               {liste("Conflits d'unicité (email/nom) — champ conservé", report.uniqueConflicts ?? [])}
               {liste("Consultants actifs SANS TJM sur la fiche Boond (repli du CA impossible)", report.activesSansTaux ?? [])}
-              {liste("Sans agence reconnue — rattachés à Paris par défaut", report.sansAgence ?? [])}
+              {liste("Libellé de rattachement NON reconnu dans Boond", report.sansAgence ?? [])}
+              {(report.sansAgenceBoond ?? 0) > 0 && (
+                <p className="text-[11.5px] text-label mt-1.5">
+                  {report.sansAgenceBoond} personne(s) sans aucun rattachement dans Boond (pôles non
+                  affectés) — rattachées à Paris par défaut ; l&rsquo;agence se saisit dans le registre.
+                </p>
+              )}
               {liste("Départs posés", (report.departuresSet ?? []).map((d) => `${d.name} → ${d.date}`))}
               {liste("Inactifs Boond — ignorés", (report.skippedInactive ?? []).map((s) => `${s.name} (état ${s.state ?? "?"})`))}
               {liste("Présents en base, absents du flux (à vérifier)", report.absentsDuFlux ?? [])}

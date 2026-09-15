@@ -18,10 +18,20 @@ const BASE = process.env.BOOND_BASE_URL || "https://ui.boondmanager.com/api"
 const JWT_HEADER = process.env.BOOND_JWT_HEADER || "X-Jwt-Client-BoondManager"
 // Relation Boond du « Responsable manager » (même valeur que Formation).
 const MANAGER_REL = process.env.BOOND_MANAGER_REL || "mainManager"
-// Relation portant l'AGENCE (Paris / Bordeaux) — s5. Le tenant expose
-// « agency » ET « pole » sur 65/65 ressources : laquelle porte la ville se
-// relève avec scripts/boond-inspect-agences.ts, et se fige ici.
-const AGENCY_REL = process.env.BOOND_AGENCY_REL || "agency"
+// Relations pouvant porter la VILLE de rattachement (Paris / Bordeaux) — s5,
+// élargi a25. On en lit PLUSIEURS, dans l'ordre : la première qui donne une
+// ville reconnue gagne. Deux raisons :
+//   · l'app Formation lit `pole` (relevé du 27/08, `mapPoleToSite`) tandis que
+//     le staffing lisait `agency` — les deux outils doivent s'allumer sur la
+//     même donnée le jour où elle existera ;
+//   · relevé du 15/09 côté staffing : `agency` vaut « SMALL » pour les 65
+//     ressources (aucune ville) et `pole` n'est affecté à personne. Autrement
+//     dit BoondManager ne connaît PAS encore la distinction — mêmes conclusions
+//     dans les deux apps, à trois semaines d'écart.
+// Le jour où l'équipe crée les pôles (ou une seconde agence) dans Boond, la
+// synchro reprend la main sans changement de code.
+const AGENCY_RELS = (process.env.BOOND_AGENCY_REL || "pole,agency")
+  .split(",").map((r) => r.trim()).filter(Boolean)
 // Correspondance libellé Boond → agence de l'app (s5/a24). Deux usages :
 //   « SMALL Sud-Ouest=BORDEAUX »  force un libellé que le mot-clé ne trouve pas ;
 //   « SMALL= »  (valeur VIDE) déclare un libellé SANS INFORMATION de ville —
@@ -115,7 +125,7 @@ export async function fetchResources(): Promise<{
     // dommage si l'API ne le supporte pas.
     const url =
       `${BASE}/resources?page=${page}&maxResults=100&maxPerPage=100` +
-      `&include=${encodeURIComponent(`${MANAGER_REL},${AGENCY_REL}`)}`
+      `&include=${encodeURIComponent([MANAGER_REL, ...AGENCY_RELS].join(","))}`
     const res = await fetch(url, { headers, cache: "no-store" })
     if (!res.ok) throw new Error(`Boond /resources HTTP ${res.status}`)
     const payload = await res.json()
@@ -269,7 +279,8 @@ export function normalizeAgency(nom: string | null | undefined): string | null {
   for (const [cle, val] of AGENCY_MAP) {
     if (normText(cle) === n) return val === "PARIS" || val === "BORDEAUX" ? val : null
   }
-  if (n.includes("bordeaux")) return "BORDEAUX"
+  // Tolérance alignée sur `mapPoleToSite` de l'app Formation (« BDX »).
+  if (n.includes("bordeaux") || n === "bdx" || n.includes("bdx")) return "BORDEAUX"
   if (n.includes("paris")) return "PARIS"
   return null
 }
@@ -329,12 +340,27 @@ export function extractPerson(
   const mgr = r.relationships?.[MANAGER_REL]?.data?.id
   const rawTitle = pickTitle(a)
 
-  const agencyId = r.relationships?.[AGENCY_REL]?.data?.id
-  const agencyRes =
-    agencyId !== undefined && agencyId !== null
-      ? included?.get(`agency#${String(agencyId)}`) ?? included?.get(`${AGENCY_REL}#${String(agencyId)}`)
-      : undefined
-  const agencyRaw = agencyRes?.attributes?.name ? String(agencyRes.attributes.name) : null
+  // Première relation candidate qui donne une VILLE reconnue ; à défaut, on
+  // garde le premier libellé rencontré pour pouvoir le signaler tel quel.
+  let agencyRaw: string | null = null
+  let agencyVille: string | null = null
+  for (const rel of AGENCY_RELS) {
+    const id = r.relationships?.[rel]?.data?.id
+    if (id === undefined || id === null) continue
+    const obj =
+      included?.get(`${rel}#${String(id)}`) ??
+      included?.get(`agency#${String(id)}`) ??
+      included?.get(`pole#${String(id)}`)
+    const nom = obj?.attributes?.name ? String(obj.attributes.name) : null
+    if (!nom) continue
+    if (agencyRaw === null) agencyRaw = nom
+    const ville = normalizeAgency(nom)
+    if (ville) {
+      agencyRaw = nom
+      agencyVille = ville
+      break
+    }
+  }
   return {
     boondId: String(r.id),
     name: `${first} ${last}`.trim(),
@@ -345,7 +371,7 @@ export function extractPerson(
     arrival: pickArrival(a),
     departure: pickDeparture(a),
     dailyRate: pickDailyRate(a),
-    agency: normalizeAgency(agencyRaw),
+    agency: agencyVille,
     agencyRaw,
     agencyNoInfo: agenceSansInfo(agencyRaw),
     managerBoondId: mgr === undefined || mgr === null ? null : String(mgr),

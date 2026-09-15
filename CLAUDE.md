@@ -218,9 +218,19 @@ Côté Boond : relation `BOOND_AGENCY_REL` (défaut `agency`), nom résolu via
 `included` (leçon a8), normalisé par MOT-CLÉ (`normalizeAgency` :
 « SMALL Bordeaux » → BORDEAUX) ; agence **jamais effacée** par un flux muet
 (une saisie au registre survit), non reconnue = signalée au rapport.
-⚠️ **Relevé du 15/09 (a24)** : le tenant n'a qu'UNE agence, « SMALL », portée
-par les 65 ressources, et aucun `pole` renseigné — **Boond ne connaît pas la
-distinction Paris/Bordeaux**. L'agence se saisit donc dans l'app
+⚠️ **Relevé du 15/09 (a24/a25)** : le tenant n'a qu'UNE agence, « SMALL »,
+portée par les 65 ressources, et aucun `pole` affecté — **Boond ne connaît pas
+la distinction Paris/Bordeaux**. **L'app Formation a fait le même constat le
+27/08** (son CLAUDE.md, é9 : « les pôles ne sont PAS encore affectés dans le
+Boond de SMALL ») et a tranché pareil : site posé à la main dans son admin, la
+synchro n'y touche pas. Différence corrigée en a25 : Formation lit `pole`, le
+staffing lisait `agency` — on lit désormais **les deux** (`BOOND_AGENCY_REL`
+= « pole,agency », première ville reconnue gagne) et on tolère « BDX » comme
+`mapPoleToSite`. **Action côté organisation** : créer les pôles « Paris » et
+« Bordeaux » dans BoondManager et les affecter — les DEUX apps s'allument alors
+sans une ligne de code. Le rapport distingue les libellés PRÉSENTS mais non
+reconnus (listés, anomalie) des personnes sans aucun rattachement (comptées,
+état normal du tenant). L'agence se saisit donc dans l'app
 (/admin/personnes) ; `BOOND_AGENCY_MAP="SMALL="` déclare ce libellé SANS
 information de ville pour qu'il n'écrase rien et cesse d'être signalé. Le jour
 où une agence « SMALL Bordeaux » existera dans Boond, la synchro reprendra la

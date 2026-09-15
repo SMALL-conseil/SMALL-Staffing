@@ -63,10 +63,13 @@ export interface SyncReport {
   ratesSet: number
   /** Agences posées ou mises à jour ce passage (Person.agency, s5). */
   agencesSet: number
-  /** Personnes du flux dont l'agence Boond n'est ni Paris ni Bordeaux (ou
-   *  absente) : rattachées à PARIS par défaut, à corriger dans Boond ou au
-   *  registre. Le libellé brut est rappelé quand il existe. */
+  /** Personnes dont Boond porte un libellé de rattachement NON reconnu (ni
+   *  Paris ni Bordeaux) : une anomalie à corriger, le libellé est rappelé. */
   sansAgence: string[]
+  /** Personnes pour lesquelles Boond ne porte AUCUN libellé (a25) : ce n'est
+   *  pas une anomalie mais l'état du tenant — relevé du 15/09, les pôles ne
+   *  sont affectés à personne. Compté, jamais listé (65 lignes de bruit). */
+  sansAgenceBoond: number
   /** Consultants ACTIFS du flux sans TJM sur leur fiche Boond — la cascade du
    *  CA retombe alors sur les seuls honoraires saisis mission par mission. */
   activesSansTaux: string[]
@@ -83,7 +86,7 @@ function emptyReport(received: number, pages: number): SyncReport {
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
-    ratesSet: 0, activesSansTaux: [], agencesSet: 0, sansAgence: [],
+    ratesSet: 0, activesSansTaux: [], agencesSet: 0, sansAgence: [], sansAgenceBoond: 0,
     kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
@@ -99,9 +102,8 @@ export function kindFromTitle(title: string): { kind: string; assumed: boolean }
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
 
-/** Ligne de signalement d'une agence non exploitable. */
-const signalAgence = (p: BoondPerson) =>
-  `${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`
+/** Ligne de signalement d'un libellé de rattachement non reconnu. */
+const signalAgence = (p: BoondPerson) => `${p.name} (Boond : « ${p.agencyRaw} »)`
 
 /** L'email est-il déjà porté par une AUTRE fiche ? */
 async function emailTakenByOther(db: Db, email: string, selfId?: string): Promise<boolean> {
@@ -240,7 +242,8 @@ export async function runBoondSync(
             },
           })
           if (p.agency !== null) report.agencesSet++
-          else if (!p.agencyNoInfo) report.sansAgence.push(signalAgence(p))
+          else if (p.agencyNoInfo || !p.agencyRaw) report.sansAgenceBoond++
+          else report.sansAgence.push(signalAgence(p))
           if (p.dailyRate !== null) report.ratesSet++
           else if (kind === PersonKind.CONSULTANT) report.activesSansTaux.push(p.name)
           if (p.departure) report.departuresSet.push({ name: p.name, date: p.departure })
@@ -309,8 +312,9 @@ export async function runBoondSync(
         data.agency = p.agency
         report.agencesSet++
       }
-      if (p.agency === null && !person.agency && !p.agencyNoInfo) {
-        report.sansAgence.push(signalAgence(p))
+      if (p.agency === null && !person.agency) {
+        if (p.agencyNoInfo || !p.agencyRaw) report.sansAgenceBoond++
+        else report.sansAgence.push(signalAgence(p))
       }
       // TJM fiche (a17) : posé ou mis à jour quand Boond en fournit un —
       // JAMAIS effacé quand la fiche n'en porte pas (même prudence que le

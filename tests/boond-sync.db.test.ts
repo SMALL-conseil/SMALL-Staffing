@@ -355,6 +355,7 @@ describe("runBoondSync (intégration, rollback)", () => {
       )
       expect(r1.agencesSet).toBe(1)
       expect(r1.sansAgence).toEqual(['TEST BOOND Flou (Boond : « SMALL Lyon »)'])
+      expect(r1.sansAgenceBoond).toBe(0) // libellé PRÉSENT mais non reconnu → listé, pas compté
       expect((await tx.person.findUnique({ where: { boondId: "test-ag1" } }))?.agency).toBe("BORDEAUX")
       // non reconnue → colonne laissée nulle : le repli Paris est une LECTURE,
       // jamais une écriture (une agence fausse en base serait indétectable)

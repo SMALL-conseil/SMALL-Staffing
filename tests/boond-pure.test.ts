@@ -8,6 +8,10 @@ describe("normalizeAgency (s5)", () => {
     expect(normalizeAgency("SMALL-CONSEIL Paris")).toBe("PARIS")
     expect(normalizeAgency("paris")).toBe("PARIS")
   })
+  it("tolère « BDX » comme l'app Formation (mapPoleToSite)", () => {
+    expect(normalizeAgency("BDX")).toBe("BORDEAUX")
+    expect(normalizeAgency("Pôle BDX")).toBe("BORDEAUX")
+  })
   it("ne devine JAMAIS : un libellé sans ville rend null", () => {
     // Cas du tenant au 15/09 : une seule agence, « SMALL », sur 65/65 fiches.
     expect(normalizeAgency("SMALL")).toBeNull()
