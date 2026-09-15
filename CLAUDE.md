@@ -423,6 +423,19 @@ l'ait vu. Même contrat que la synchro des personnes.
 Vérifié en navigateur réel : création à l'unité, la 2e proposition survit avec
 son signalement de recouvrement, rejeu de la même prestation → 409.
 
+**a37 (15/09) — la carte ne montre QUE les missions EN COURS avec un TJM.**
+Relevé de recette : 52 propositions sur Paris, dont une majorité de **2024**
+(Bpifrance, Oney, VEOLIA, SUEZ) et des intitulés **sans TJM** (« Proximité »,
+« Semeurs de Forêts »). Deux règles, et aucune n'est cosmétique :
+- une mission **terminée** créée aujourd'hui **réécrirait le taux de staffing
+  d'une période close** — le moteur est une réplique certifiée de l'Excel, on
+  ne retouche pas son passé par un bouton ;
+- une prestation **sans TJM** n'est pas du staffing client : la proposer
+  compterait comme staffé un temps qui ne l'est pas.
+`aProposer()` (pur, testé) filtre et COMPTE le reste ; l'en-tête affiche les
+trois motifs d'exclusion (déjà couverte / terminée / sans TJM). Titre de la
+carte : « Missions en cours absentes du registre ».
+
 **a35 (15/09) — une prestation qui chevauche une mission du registre n'est plus
 proposée.** Décision de Sacha après recette : sur Paris, dont le registre est
 complet et tenu depuis le classeur, ces lignes n'étaient que du bruit — la

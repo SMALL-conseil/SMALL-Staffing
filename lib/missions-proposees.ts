@@ -177,3 +177,33 @@ export function partitionner(props: Proposition[]): {
     chevauchantes: props.filter((p) => p.chevauche),
   }
 }
+
+/**
+ * Ce qui mérite d'être PROPOSÉ aujourd'hui (a37).
+ *
+ * Décision du 15/09 (Sacha, sur relevé : 52 propositions dont une majorité de
+ * 2024) : la carte ne montre QUE les prestations qui courent encore et qui
+ * portent un TJM. Deux raisons, et aucune n'est cosmétique :
+ *
+ *  · une mission de 2024 créée aujourd'hui RÉÉCRIRAIT le taux de staffing d'une
+ *    année close — le moteur est une réplique certifiée de l'Excel, on ne
+ *    retouche pas son passé par un bouton ;
+ *  · une prestation SANS TJM (« Proximité », « Semeurs de Forêts ») n'est pas
+ *    du staffing client : la proposer reviendrait à compter comme staffé un
+ *    temps qui ne l'est pas.
+ *
+ * Le reste n'est pas perdu : il est compté, et le nombre s'affiche.
+ */
+export function aProposer(
+  props: Proposition[],
+  today: string
+): { retenues: Proposition[]; terminees: number; sansTjm: number } {
+  const terminees = props.filter((p) => p.end < today)
+  const encours = props.filter((p) => p.end >= today)
+  const sansTjm = encours.filter((p) => p.fees === null || p.fees <= 0)
+  return {
+    retenues: encours.filter((p) => p.fees !== null && p.fees > 0),
+    terminees: terminees.length,
+    sansTjm: sansTjm.length,
+  }
+}

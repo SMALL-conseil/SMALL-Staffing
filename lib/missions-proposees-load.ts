@@ -11,11 +11,13 @@
 import { prisma } from "./prisma"
 import { toIsoDate } from "./staffing-load"
 import {
+  aProposer,
   partitionner,
   propositions,
   type MissionExistante,
   type PrestationSource,
 } from "./missions-proposees"
+import { todayParis } from "./staffing-ui"
 import { dansLePerimetre } from "./perimetre"
 import { Perimetre, PersonKind } from "./types"
 
@@ -46,6 +48,12 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
   /** a35 — prestations qui chevauchent une mission déjà au registre : comptées,
    *  pas proposées (la mission existe, sous un autre libellé client). */
   chevauchantes: number
+  /** a37 — prestations TERMINÉES : compter une mission passée réécrirait le
+   *  taux de staffing d'une période close. Comptées, pas proposées. */
+  terminees: number
+  /** a37 — prestations en cours SANS TJM (« Proximité », « Semeurs de Forêts ») :
+   *  ce n'est pas du staffing client. Comptées, pas proposées. */
+  sansTjm: number
 }> {
   const [deliveries, persons, missions] = await Promise.all([
     prisma.delivery.findMany({
@@ -111,9 +119,10 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
     end: toIsoDate(m.endDate),
   }))
 
-  // a35 — on ne propose QUE ce qui ne chevauche aucune mission existante.
+  // a35 — on ne propose QUE ce qui ne chevauche aucune mission existante,
+  // a37 — et parmi celles-là, uniquement ce qui COURT ENCORE avec un TJM.
   const { franches, chevauchantes } = partitionner(propositions(sources, existantes))
-  const retenues = franches
+  const { retenues, terminees, sansTjm } = aProposer(franches, todayParis())
 
   // Jours de CRA déjà pointés sur chaque prestation retenue : c'est la preuve
   // que la mission a bien eu lieu, et le meilleur argument pour la créer.
@@ -140,5 +149,7 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
     sansRessource,
     sansFiche,
     chevauchantes: chevauchantes.length,
+    terminees,
+    sansTjm,
   }
 }

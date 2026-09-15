@@ -95,6 +95,8 @@ export default async function AdminMissionsPage() {
         sansRessource={proposees.sansRessource}
         sansFiche={proposees.sansFiche}
         chevauchantes={proposees.chevauchantes}
+        terminees={proposees.terminees}
+        sansTjm={proposees.sansTjm}
       />
 
       <MissionsAdmin missions={rows} consultants={consultants} clients={clients} />

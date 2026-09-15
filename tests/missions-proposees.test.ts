@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  aProposer,
   memeClient,
   partProposee,
   partitionner,
@@ -162,5 +163,62 @@ describe("partitionner (a35) — on ne propose pas ce que le registre couvre dé
     expect([...franches, ...chevauchantes].map((p) => p.boondId).sort()).toEqual(
       base.map((p) => p.boondId).sort()
     )
+  })
+})
+
+describe("aProposer (a37) — on ne propose que ce qui court encore, avec un TJM", () => {
+  // Relevé du 15/09 : 52 propositions, dont une majorité de 2024 (Bpifrance,
+  // Oney, VEOLIA, SUEZ) et des intitulés sans TJM (« Proximité », « Semeurs de
+  // Forêts »). Créer une mission de 2024 réécrirait un taux de staffing arrêté ;
+  // une prestation sans TJM n'est pas du staffing client.
+  const TODAY = "2026-09-15"
+  const p = (over: Partial<PrestationSource>) => ({ ...ACCOR, ...over })
+
+  it("écarte les prestations TERMINÉES et les compte", () => {
+    const out = aProposer(
+      propositions([p({ boondId: "vieux", start: "2024-11-04", end: "2024-12-31" })], []),
+      TODAY
+    )
+    expect(out.retenues).toHaveLength(0)
+    expect(out.terminees).toBe(1)
+  })
+  it("écarte les prestations SANS TJM et les compte", () => {
+    const out = aProposer(
+      propositions(
+        // encore en cours (sinon elle serait comptée « terminée ») mais sans TJM
+        [p({ boondId: "proximite", start: "2026-05-07", end: "2026-12-31", dailyRate: null })],
+        []
+      ),
+      TODAY
+    )
+    expect(out.retenues).toHaveLength(0)
+    expect(out.sansTjm).toBe(1)
+  })
+  it("garde ce qui court encore AVEC un TJM — le cas bordelais", () => {
+    const out = aProposer(
+      propositions([p({ boondId: "encours", start: "2026-01-01", end: "2026-12-31", dailyRate: 900 })], []),
+      TODAY
+    )
+    expect(out.retenues.map((x) => x.boondId)).toEqual(["encours"])
+    expect(out.terminees + out.sansTjm).toBe(0)
+  })
+  it("une prestation qui se termine AUJOURD'HUI court encore", () => {
+    const out = aProposer(
+      propositions([p({ boondId: "aujourdhui", start: "2026-01-01", end: TODAY, dailyRate: 900 })], []),
+      TODAY
+    )
+    expect(out.retenues).toHaveLength(1)
+  })
+  it("rien n'est perdu : retenues + terminées + sans TJM = tout", () => {
+    const props = propositions(
+      [
+        p({ boondId: "a", start: "2024-01-01", end: "2024-12-31" }),
+        p({ boondId: "b", start: "2026-01-01", end: "2026-12-31", dailyRate: null }),
+        p({ boondId: "c", start: "2026-01-01", end: "2026-12-31", dailyRate: 900 }),
+      ],
+      []
+    )
+    const out = aProposer(props, TODAY)
+    expect(out.retenues.length + out.terminees + out.sansTjm).toBe(props.length)
   })
 })

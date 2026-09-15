@@ -10,8 +10,13 @@
 // a35 — une prestation qui CHEVAUCHE une mission déjà au registre n'apparaît
 // plus : la mission existe, sous un autre libellé client. Sur Paris, dont le
 // registre est complet, ces lignes n'étaient que du bruit — et un bruit qui
-// invitait à créer un doublon. Elles restent COMPTÉES dans l'en-tête : un écran
-// qui cache sans le dire serait pire.
+// invitait à créer un doublon.
+// a37 — la carte ne montre plus que les prestations qui COURENT ENCORE et qui
+// portent un TJM. Une mission de 2024 créée aujourd'hui réécrirait le taux de
+// staffing d'une année close, et une prestation sans TJM (« Proximité »,
+// « Semeurs de Forêts ») n'est pas du staffing client.
+// Tout ce qui est écarté reste COMPTÉ sous le titre : un écran qui cache sans
+// le dire serait pire qu'un écran bruyant.
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus } from "lucide-react"
@@ -37,6 +42,9 @@ interface Props {
   sansFiche: number
   /** a35 — prestations couvertes par une mission existante : comptées, pas proposées. */
   chevauchantes: number
+  /** a37 — prestations terminées, et en cours sans TJM : comptées, pas proposées. */
+  terminees: number
+  sansTjm: number
 }
 
 export default function PropositionsCard({
@@ -45,6 +53,8 @@ export default function PropositionsCard({
   sansRessource,
   sansFiche,
   chevauchantes,
+  terminees,
+  sansTjm,
 }: Props) {
   const router = useRouter()
   const [enCours, setEnCours] = useState<string | null>(null)
@@ -95,12 +105,15 @@ export default function PropositionsCard({
     <div className="card px-6 py-6 mb-5">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="titre-section">Missions proposées par Boond</h2>
+          <h2 className="titre-section">Missions en cours absentes du registre</h2>
           <p className="text-[11.5px] text-label mt-1">
-            Périmètre observé · {prestations} prestation(s) connue(s) · {propositions.length} sans
-            mission au registre
-            {chevauchantes > 0 &&
-              ` · ${chevauchantes} déjà couverte(s) par une mission du registre (non proposées)`}
+            Périmètre observé · {propositions.length} prestation(s) qui courent encore, avec un TJM,
+            sans mission au registre.
+          </p>
+          <p className="text-[10.5px] text-label mt-0.5">
+            Non proposées : {chevauchantes} déjà couverte(s) par une mission · {terminees}{" "}
+            terminée(s) (créer une mission passée réécrirait un taux de staffing arrêté) ·{" "}
+            {sansTjm} sans TJM (ce n&rsquo;est pas du staffing client)
             {sansFiche > 0 && ` · ${sansFiche} sur une ressource absente du registre`}
             {sansRessource > 0 && ` · ${sansRessource} sans ressource dans Boond`}
           </p>
@@ -113,7 +126,7 @@ export default function PropositionsCard({
 
       {propositions.length === 0 ? (
         <p className="text-[12.5px] text-texte-2 mt-3">
-          Chaque prestation Boond a sa mission au registre. 👍
+          Toutes les missions en cours sont au registre. 👍
         </p>
       ) : (
         <div className="divide-y divide-fond mt-3">
