@@ -10,7 +10,12 @@
 // ============================================================
 import { prisma } from "./prisma"
 import { toIsoDate } from "./staffing-load"
-import { propositions, type MissionExistante, type PrestationSource } from "./missions-proposees"
+import {
+  partitionner,
+  propositions,
+  type MissionExistante,
+  type PrestationSource,
+} from "./missions-proposees"
 import { dansLePerimetre } from "./perimetre"
 import { Perimetre, PersonKind } from "./types"
 
@@ -38,6 +43,9 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
   prestations: number
   sansRessource: number
   sansFiche: number
+  /** a35 — prestations qui chevauchent une mission déjà au registre : comptées,
+   *  pas proposées (la mission existe, sous un autre libellé client). */
+  chevauchantes: number
 }> {
   const [deliveries, persons, missions] = await Promise.all([
     prisma.delivery.findMany({
@@ -103,7 +111,9 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
     end: toIsoDate(m.endDate),
   }))
 
-  const retenues = propositions(sources, existantes)
+  // a35 — on ne propose QUE ce qui ne chevauche aucune mission existante.
+  const { franches, chevauchantes } = partitionner(propositions(sources, existantes))
+  const retenues = franches
 
   // Jours de CRA déjà pointés sur chaque prestation retenue : c'est la preuve
   // que la mission a bien eu lieu, et le meilleur argument pour la créer.
@@ -129,5 +139,6 @@ export async function chargePropositions(perimetre: Perimetre = Perimetre.TOUT):
     prestations: deliveries.length,
     sansRessource,
     sansFiche,
+    chevauchantes: chevauchantes.length,
   }
 }

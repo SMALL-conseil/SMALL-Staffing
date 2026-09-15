@@ -89,12 +89,12 @@ export default async function AdminMissionsPage() {
           fees: p.fees,
           share: p.share,
           motifShare: p.motifShare,
-          chevauche: p.chevauche,
           joursPointes: p.joursPointes,
         }))}
         prestations={proposees.prestations}
         sansRessource={proposees.sansRessource}
         sansFiche={proposees.sansFiche}
+        chevauchantes={proposees.chevauchantes}
       />
 
       <MissionsAdmin missions={rows} consultants={consultants} clients={clients} />

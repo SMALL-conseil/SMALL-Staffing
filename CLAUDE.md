@@ -423,6 +423,17 @@ l'ait vu. Même contrat que la synchro des personnes.
 Vérifié en navigateur réel : création à l'unité, la 2e proposition survit avec
 son signalement de recouvrement, rejeu de la même prestation → 409.
 
+**a35 (15/09) — une prestation qui chevauche une mission du registre n'est plus
+proposée.** Décision de Sacha après recette : sur Paris, dont le registre est
+complet et tenu depuis le classeur, ces lignes n'étaient que du bruit — la
+mission existe, sous un libellé client différent — et un bruit qui invitait à
+créer un doublon. `partitionner()` (pur, testé) sépare les propositions franches
+des chevauchantes ; seules les franches s'affichent. Les autres restent
+**comptées dans l'en-tête** (« N déjà couverte(s) par une mission du registre ») :
+un écran qui cache sans le dire serait pire qu'un écran bruyant. Corollaire
+assumé : un vrai temps partagé — deux clients en parallèle — se saisit à la main
+au registre, comme avant s8. C'est rare, et ça se décide.
+
 **a33 (15/09) — reprise en main après retour de recette.** Trois garde-fous
 posés après un signalement de Sacha (« des chevauchements partout sur Paris,
 alors que le lot ne devait toucher que Bordeaux ») :

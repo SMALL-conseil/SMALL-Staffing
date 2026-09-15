@@ -153,3 +153,27 @@ export function propositions(
   // Les plus récentes d'abord : ce sont celles qui pèsent sur les chiffres du jour.
   return out.sort((a, b) => b.start.localeCompare(a.start))
 }
+
+/**
+ * Sépare ce qu'on PROPOSE de ce qu'on se contente de compter (a35).
+ *
+ * Décision du 15/09 (Sacha) : une prestation qui chevauche une mission déjà au
+ * registre n'est PAS proposée. Sur Paris — un registre complet, tenu depuis le
+ * classeur — ces lignes n'étaient que du bruit : la mission existe, sous un
+ * libellé client différent. Les afficher en rouge invitait à créer un doublon
+ * là où il n'y avait rien à faire.
+ *
+ * Elles ne disparaissent pas pour autant : elles sont COMPTÉES et le nombre
+ * s'affiche. Un écran qui cache sans le dire est pire qu'un écran bruyant.
+ * (Le vrai temps partagé — deux clients en parallèle — se saisit alors à la
+ * main au registre, comme avant : c'est un cas rare et qui se décide.)
+ */
+export function partitionner(props: Proposition[]): {
+  franches: Proposition[]
+  chevauchantes: Proposition[]
+} {
+  return {
+    franches: props.filter((p) => !p.chevauche),
+    chevauchantes: props.filter((p) => p.chevauche),
+  }
+}

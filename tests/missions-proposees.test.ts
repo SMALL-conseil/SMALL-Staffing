@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { memeClient, partProposee, propositions, type PrestationSource } from "@/lib/missions-proposees"
+import {
+  memeClient,
+  partProposee,
+  partitionner,
+  propositions,
+  type PrestationSource,
+} from "@/lib/missions-proposees"
 
 // Prestations réelles relevées le 15/09 (scripts/boond-missions-possibles.ts).
 const TEXEI: PrestationSource = {
@@ -133,5 +139,28 @@ describe("propositions — ce que le registre ignore, et rien d'autre", () => {
   it("les plus récentes d'abord — ce sont elles qui pèsent sur les chiffres du jour", () => {
     const out = propositions([ACCOR, TEXEI], [])
     expect(out.map((p) => p.boondId)).toEqual(["138", "99"])
+  })
+})
+
+describe("partitionner (a35) — on ne propose pas ce que le registre couvre déjà", () => {
+  // Décision du 15/09 : sur Paris, dont le registre est complet, une
+  // prestation qui chevauche une mission existante n'est que du bruit — et un
+  // bruit qui invite à créer un doublon. Elle est comptée, pas proposée.
+  const base = propositions(
+    [ACCOR, { ...TEXEI, personId: "p-alice", client: "TEXEI" }],
+    [{ personId: "p-alice", client: "GROUPAMA", start: "2025-01-01", end: "2025-12-31" }]
+  )
+  it("sépare les propositions franches de celles qui chevauchent", () => {
+    const { franches, chevauchantes } = partitionner(base)
+    expect(franches.every((p) => p.chevauche === null)).toBe(true)
+    expect(chevauchantes.every((p) => p.chevauche !== null)).toBe(true)
+    expect(franches.length + chevauchantes.length).toBe(base.length)
+  })
+  it("aucune n'est perdue : ce qui n'est pas proposé reste comptable", () => {
+    const { franches, chevauchantes } = partitionner(base)
+    expect(chevauchantes.length).toBeGreaterThan(0)
+    expect([...franches, ...chevauchantes].map((p) => p.boondId).sort()).toEqual(
+      base.map((p) => p.boondId).sort()
+    )
   })
 })

@@ -6,6 +6,12 @@
 // sans un clic. Chaque ligne montre ce qui sera créé — personne, client, dates,
 // part, honoraires — et les jours de CRA déjà pointés, qui sont la preuve que
 // la mission a bien eu lieu.
+//
+// a35 — une prestation qui CHEVAUCHE une mission déjà au registre n'apparaît
+// plus : la mission existe, sous un autre libellé client. Sur Paris, dont le
+// registre est complet, ces lignes n'étaient que du bruit — et un bruit qui
+// invitait à créer un doublon. Elles restent COMPTÉES dans l'en-tête : un écran
+// qui cache sans le dire serait pire.
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus } from "lucide-react"
@@ -21,7 +27,6 @@ export interface PropositionUI {
   fees: number | null
   share: number
   motifShare: string
-  chevauche: string | null
   joursPointes: number
 }
 
@@ -30,9 +35,17 @@ interface Props {
   prestations: number
   sansRessource: number
   sansFiche: number
+  /** a35 — prestations couvertes par une mission existante : comptées, pas proposées. */
+  chevauchantes: number
 }
 
-export default function PropositionsCard({ propositions, prestations, sansRessource, sansFiche }: Props) {
+export default function PropositionsCard({
+  propositions,
+  prestations,
+  sansRessource,
+  sansFiche,
+  chevauchantes,
+}: Props) {
   const router = useRouter()
   const [enCours, setEnCours] = useState<string | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null)
@@ -86,6 +99,8 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
           <p className="text-[11.5px] text-label mt-1">
             Périmètre observé · {prestations} prestation(s) connue(s) · {propositions.length} sans
             mission au registre
+            {chevauchantes > 0 &&
+              ` · ${chevauchantes} déjà couverte(s) par une mission du registre (non proposées)`}
             {sansFiche > 0 && ` · ${sansFiche} sur une ressource absente du registre`}
             {sansRessource > 0 && ` · ${sansRessource} sans ressource dans Boond`}
           </p>
@@ -120,11 +135,6 @@ export default function PropositionsCard({ propositions, prestations, sansRessou
                   part {p.share}
                   {p.joursPointes > 0 ? ` · ${p.joursPointes} j pointés` : " · aucun jour pointé"}
                 </span>
-                {p.chevauche && (
-                  <span className="block text-[10.5px] text-err mt-0.5">
-                    chevauche « {p.chevauche} » — temps partagé ? à vérifier
-                  </span>
-                )}
               </div>
               <div className="col-span-3 flex justify-end">
                 <button
