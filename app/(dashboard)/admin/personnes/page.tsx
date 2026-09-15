@@ -9,6 +9,7 @@ import { computeCroisement } from "@/lib/boond-sync"
 import AbsencesAdmin from "./AbsencesAdmin"
 import SyncBoondCard from "./SyncBoondCard"
 import AgenceCell from "@/components/AgenceCell"
+import GradeCell from "@/components/GradeCell"
 
 // Registre des personnes (ADMIN) — consultants et siège en LECTURE (la
 // synchro Boond du lot s4 alimentera ce registre ; d'ici là : import Excel).
@@ -202,7 +203,7 @@ export default async function AdminPersonnesPage() {
           <span className="text-[12px] font-bold text-anthracite">
             Consultants ({consultants.length})
           </span>
-          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">agence modifiable</span>
+          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">grade et agence modifiables</span>
         </div>
         <div className="px-5 py-2 border-b border-fond">
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
@@ -224,7 +225,9 @@ export default async function AdminPersonnesPage() {
                   {p._count.missions} mission{p._count.missions > 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="col-span-1 text-texte">{p.grade}</div>
+              <div className="col-span-1">
+                <GradeCell personId={p.id} grade={p.grade} kind={p.kind} />
+              </div>
               <div className="col-span-2">
                 <AgenceCell personId={p.id} agency={p.agency} />
               </div>
@@ -242,7 +245,7 @@ export default async function AdminPersonnesPage() {
       <div className="card overflow-hidden">
         <div className="px-5 py-3 border-b border-fond bg-creme flex items-baseline justify-between">
           <span className="text-[12px] font-bold text-anthracite">Siège ({siege.length})</span>
-          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">agence modifiable</span>
+          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">grade et agence modifiables</span>
         </div>
         <div className="px-5 py-2 border-b border-fond">
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
@@ -257,7 +260,9 @@ export default async function AdminPersonnesPage() {
           {siege.map((p) => (
             <div key={p.id} className="px-5 py-2 grid grid-cols-12 gap-2 items-center text-[12.5px]">
               <div className="col-span-3 font-bold text-anthracite truncate">{p.name}</div>
-              <div className="col-span-3 text-texte truncate">{p.grade}</div>
+              <div className="col-span-3">
+                <GradeCell personId={p.id} grade={p.grade} kind={p.kind} />
+              </div>
               <div className="col-span-2">
                 <AgenceCell personId={p.id} agency={p.agency} />
               </div>

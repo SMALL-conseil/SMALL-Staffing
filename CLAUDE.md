@@ -357,6 +357,23 @@ ACTIVES en agence « SMALL BORDEAUX », sans aucune date de fin. Bonne nouvelle 
 cette date de départ EST la date du transfert — le script la reprend (lendemain)
 et rien n'est à retrouver à la main.
 
+### Grade corrigeable au registre (a30, 15/09)
+
+Le Suivi_Effectif ne compte QUE les grades de la grille (fidèle à l'Excel) : un
+titre Boond libre — « Directeur SMALL Bordeaux », « Project Manager Credit
+Risk » — fait donc **disparaître la personne du tableau des effectifs**, alors
+qu'elle compte bien dans le TAUX de staffing (`isSalarie` n'exclut que Rookie et
+Indép). Avec l'arrivée de Bordeaux, 5 fiches étaient dans ce cas.
+L'équipe n'ayant pas la main sur les Titres dans BoondManager (constat du 14/08),
+le grade se corrige désormais dans `/admin/personnes` (`GradeCell`, gate Siège,
+`PATCH /api/personnes/[id]` qui accepte `agency` ET/OU `grade`). Deux garde-fous :
+l'API n'accepte QUE les grades de la grille du kind (un grade libre ne peut venir
+que de Boond), et le titre hors grille reste proposé dans la liste — on ne perd
+jamais silencieusement la valeur d'origine. Le grade posé à la main TIENT : la
+synchro ne remplace jamais un grade de la grille par un titre hors grille (a10).
+Vérifié en navigateur réel : bascule + persistance après rechargement, et 400 sur
+« Directeur SMALL Bordeaux », grade vide, grade d'un autre kind, corps vide.
+
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
 `/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la
