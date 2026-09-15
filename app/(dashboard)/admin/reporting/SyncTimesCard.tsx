@@ -4,7 +4,7 @@
 // tout est annulé) ou synchro réelle. Premier passage = pleine charge.
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { RefreshCw } from "lucide-react"
+import { History, RefreshCw } from "lucide-react"
 import type { TimesSyncReport } from "@/lib/boond-times-sync"
 
 export interface LastTimesRunProps {
@@ -23,23 +23,30 @@ interface Props {
 
 export default function SyncTimesCard({ lastRun, boondConfigured, hasEntries }: Props) {
   const router = useRouter()
-  const [running, setRunning] = useState<false | "dry" | "real">(false)
+  const [running, setRunning] = useState<false | "dry" | "real" | "full">(false)
   const [confirmReal, setConfirmReal] = useState(false)
+  // a31 — la pleine charge se confirme à part : elle réécrit TOUT l'historique.
+  const [confirmFull, setConfirmFull] = useState(false)
   const [report, setReport] = useState<(TimesSyncReport & { dryRun: boolean; error?: string }) | null>(null)
 
-  async function launch(dryRun: boolean) {
-    if (!dryRun && !confirmReal) {
+  async function launch(dryRun: boolean, full = false) {
+    if (!dryRun && !full && !confirmReal) {
       setConfirmReal(true)
       return
     }
+    if (full && !confirmFull) {
+      setConfirmFull(true)
+      return
+    }
     setConfirmReal(false)
-    setRunning(dryRun ? "dry" : "real")
+    setConfirmFull(false)
+    setRunning(dryRun ? "dry" : full ? "full" : "real")
     setReport(null)
     try {
       const res = await fetch("/api/boond/sync-times", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun }),
+        body: JSON.stringify({ dryRun, full }),
       })
       const data = await res.json()
       setReport({ ...data, dryRun })
@@ -96,15 +103,36 @@ export default function SyncTimesCard({ lastRun, boondConfigured, hasEntries }: 
             className={`btn ${confirmReal ? "btn-primary" : "btn-ghost"}`}
             title={boondConfigured ? undefined : "Secrets BOOND_* absents du .env"}
           >
-            <RefreshCw size={14} aria-hidden="true" className={running ? "animate-spin" : ""} />
+            <RefreshCw size={14} aria-hidden="true" className={running === "real" ? "animate-spin" : ""} />
             {running === "real" ? "Synchronisation…" : confirmReal ? "Confirmer la synchro ?" : "Synchroniser les jours"}
+          </button>
+          {/* a31 — Pleine charge : relit TOUT l'historique au lieu de la fenêtre
+              des 90 derniers jours. Nécessaire après un élargissement du
+              périmètre du jeton (a27 : les jours bordelais manquaient), après
+              s6 (les lignes d'avant ne portent pas la prestation) et après un
+              transfert d'agence (s7 : chaque jour se range dans sa période). */}
+          <button
+            type="button"
+            onClick={() => launch(false, true)}
+            disabled={running !== false || !boondConfigured}
+            className={`btn ${confirmFull ? "btn-primary" : "btn-ghost"}`}
+            title="Relit tout l'historique des CRA et le réécrit — à faire après un changement de jeton, de périmètre ou un transfert d'agence"
+          >
+            <History size={14} aria-hidden="true" className={running === "full" ? "animate-spin" : ""} />
+            {running === "full"
+              ? "Rechargement…"
+              : confirmFull
+                ? "Confirmer le rechargement ?"
+                : "Recharger tout l'historique"}
           </button>
         </div>
       </div>
 
       {running !== false && (
         <p className="text-[12.5px] text-texte-2 mt-3">
-          {hasEntries ? "Fenêtre en cours de relecture…" : "Pleine charge en cours (tout l'historique CRA)…"}
+          {running === "full" || !hasEntries
+            ? "Pleine charge en cours (tout l'historique CRA — quelques minutes)…"
+            : "Fenêtre en cours de relecture…"}
         </p>
       )}
 
