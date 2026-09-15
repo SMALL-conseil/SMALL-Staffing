@@ -83,9 +83,13 @@ async function main() {
   }
 
   console.log(
-    "\n→ Figer la bonne relation dans .env : BOOND_AGENCY_REL=\"agency\" (ou \"pole\"…)," +
-      "\n  puis relancer une RÉPÉTITION de la synchro des personnes." +
-      "\n→ Coller cette sortie à Claude si un libellé sort « NON RECONNU »."
+    "\n→ Figer la bonne relation dans .env : BOOND_AGENCY_REL=\"agency\" (ou \"pole\"…)." +
+      "\n→ Un libellé « NON RECONNU » n'écrit rien (les agences saisies dans l'app" +
+      "\n  survivent). S'il ne porte simplement AUCUNE ville — cas d'un tenant à une" +
+      "\n  seule agence —, le déclarer sans information pour qu'il cesse d'être" +
+      "\n  signalé à chaque synchro :   BOOND_AGENCY_MAP=\"SMALL=\"" +
+      "\n  (et pour forcer un libellé :  BOOND_AGENCY_MAP=\"SMALL Sud-Ouest=BORDEAUX\")" +
+      "\n→ Puis relancer une RÉPÉTITION de la synchro des personnes."
   )
 }
 

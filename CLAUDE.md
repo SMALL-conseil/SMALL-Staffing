@@ -214,11 +214,19 @@ sont écartées) — vérifié : Paris + Bordeaux = Tout, aux personnes et aux
 missions près. Pages filtrées : tableau de bord, carte, intercontrat,
 effectifs, reporting. Les REGISTRES (missions, personnes) restent complets :
 ce sont des outils de saisie, pas des vues d'analyse.
-Côté Boond : relation `BOOND_AGENCY_REL` (défaut `agency`, le tenant expose
-aussi `pole` — trancher avec `npx tsx scripts/boond-inspect-agences.ts`), nom
-résolu via `included` (leçon a8), normalisé par MOT-CLÉ (`normalizeAgency` :
+Côté Boond : relation `BOOND_AGENCY_REL` (défaut `agency`), nom résolu via
+`included` (leçon a8), normalisé par MOT-CLÉ (`normalizeAgency` :
 « SMALL Bordeaux » → BORDEAUX) ; agence **jamais effacée** par un flux muet
 (une saisie au registre survit), non reconnue = signalée au rapport.
+⚠️ **Relevé du 15/09 (a24)** : le tenant n'a qu'UNE agence, « SMALL », portée
+par les 65 ressources, et aucun `pole` renseigné — **Boond ne connaît pas la
+distinction Paris/Bordeaux**. L'agence se saisit donc dans l'app
+(/admin/personnes) ; `BOOND_AGENCY_MAP="SMALL="` déclare ce libellé SANS
+information de ville pour qu'il n'écrase rien et cesse d'être signalé. Le jour
+où une agence « SMALL Bordeaux » existera dans Boond, la synchro reprendra la
+main toute seule (et une entrée `"Libellé=BORDEAUX"` force un libellé que le
+mot-clé ne trouve pas). Ne JAMAIS mapper « SMALL » vers PARIS : la synchro
+réécrirait alors les agences Bordeaux saisies à la main.
 
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 

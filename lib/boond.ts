@@ -22,6 +22,25 @@ const MANAGER_REL = process.env.BOOND_MANAGER_REL || "mainManager"
 // « agency » ET « pole » sur 65/65 ressources : laquelle porte la ville se
 // relève avec scripts/boond-inspect-agences.ts, et se fige ici.
 const AGENCY_REL = process.env.BOOND_AGENCY_REL || "agency"
+// Correspondance libellé Boond → agence de l'app (s5/a24). Deux usages :
+//   « SMALL Sud-Ouest=BORDEAUX »  force un libellé que le mot-clé ne trouve pas ;
+//   « SMALL= »  (valeur VIDE) déclare un libellé SANS INFORMATION de ville —
+//     relevé du 15/09 : le tenant n'a qu'une agence, « SMALL », portée par les
+//     65 ressources. Sans ce réglage, la synchro signalerait tout le monde
+//     comme « sans agence » à chaque passage. Un libellé sans information
+//     n'écrit RIEN : les agences saisies dans l'app survivent.
+const AGENCY_MAP = new Map<string, string>(
+  (process.env.BOOND_AGENCY_MAP || "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const i = p.indexOf("=")
+      const cle = (i === -1 ? p : p.slice(0, i)).trim()
+      const val = (i === -1 ? "" : p.slice(i + 1)).trim().toUpperCase()
+      return [cle, val] as [string, string]
+    })
+)
 // Champ portant le « Titre » ; vide = chaîne de candidats (à figer via inspect).
 const TITLE_FIELD = process.env.BOOND_TITLE_FIELD || ""
 // Champs portant les dates d'arrivée / de départ ; vides = chaînes de candidats.
@@ -244,9 +263,27 @@ export function isIndepType(a: Record<string, unknown>): boolean {
 export function normalizeAgency(nom: string | null | undefined): string | null {
   const n = normText(nom)
   if (!n) return null
+  for (const [cle, val] of AGENCY_MAP) {
+    if (normText(cle) === n) return val === "PARIS" || val === "BORDEAUX" ? val : null
+  }
   if (n.includes("bordeaux")) return "BORDEAUX"
   if (n.includes("paris")) return "PARIS"
   return null
+}
+
+/**
+ * Le libellé est-il déclaré SANS INFORMATION de ville (entrée à valeur vide de
+ * BOOND_AGENCY_MAP) ? Un tel libellé n'est pas une anomalie : inutile de le
+ * signaler à chaque synchro. Distinct de « non reconnu », qui, lui, mérite
+ * l'attention.
+ */
+export function agenceSansInfo(nom: string | null | undefined): boolean {
+  const n = normText(nom)
+  if (!n) return false
+  for (const [cle, val] of AGENCY_MAP) {
+    if (normText(cle) === n) return val === ""
+  }
+  return false
 }
 
 /** Personne normalisée extraite d'une ressource Boond. */
@@ -266,6 +303,9 @@ export interface BoondPerson {
   agency: string | null
   /** Libellé BRUT de l'agence Boond — sert au signalement quand non reconnue. */
   agencyRaw: string | null
+  /** Libellé déclaré sans information de ville (BOOND_AGENCY_MAP) — ni écrit,
+   *  ni signalé : le tenant ne sait tout simplement pas. */
+  agencyNoInfo: boolean
   managerBoondId: string | null
   excluded: boolean
   activeState: boolean
@@ -304,6 +344,7 @@ export function extractPerson(
     dailyRate: pickDailyRate(a),
     agency: normalizeAgency(agencyRaw),
     agencyRaw,
+    agencyNoInfo: agenceSansInfo(agencyRaw),
     managerBoondId: mgr === undefined || mgr === null ? null : String(mgr),
     excluded: isExcludedType(a),
     activeState: isActiveState(a),

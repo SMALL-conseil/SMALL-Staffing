@@ -99,6 +99,10 @@ export function kindFromTitle(title: string): { kind: string; assumed: boolean }
 
 const day = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
 
+/** Ligne de signalement d'une agence non exploitable. */
+const signalAgence = (p: BoondPerson) =>
+  `${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`
+
 /** L'email est-il déjà porté par une AUTRE fiche ? */
 async function emailTakenByOther(db: Db, email: string, selfId?: string): Promise<boolean> {
   const holder = await db.person.findUnique({ where: { email } })
@@ -236,7 +240,7 @@ export async function runBoondSync(
             },
           })
           if (p.agency !== null) report.agencesSet++
-          else report.sansAgence.push(`${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`)
+          else if (!p.agencyNoInfo) report.sansAgence.push(signalAgence(p))
           if (p.dailyRate !== null) report.ratesSet++
           else if (kind === PersonKind.CONSULTANT) report.activesSansTaux.push(p.name)
           if (p.departure) report.departuresSet.push({ name: p.name, date: p.departure })
@@ -305,10 +309,8 @@ export async function runBoondSync(
         data.agency = p.agency
         report.agencesSet++
       }
-      if (p.agency === null && !person.agency) {
-        report.sansAgence.push(
-          `${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`
-        )
+      if (p.agency === null && !person.agency && !p.agencyNoInfo) {
+        report.sansAgence.push(signalAgence(p))
       }
       // TJM fiche (a17) : posé ou mis à jour quand Boond en fournit un —
       // JAMAIS effacé quand la fiche n'en porte pas (même prudence que le

@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest"
-import { extractPerson, normDate, normalizeTitle, pickDailyRate, pickEmail } from "@/lib/boond"
+import { extractPerson, normDate, normalizeAgency, normalizeTitle, pickDailyRate, pickEmail } from "@/lib/boond"
+
+describe("normalizeAgency (s5)", () => {
+  it("reconnaît la ville dans le libellé, quelle que soit sa forme", () => {
+    expect(normalizeAgency("SMALL Bordeaux")).toBe("BORDEAUX")
+    expect(normalizeAgency("Agence de BORDEAUX")).toBe("BORDEAUX")
+    expect(normalizeAgency("SMALL-CONSEIL Paris")).toBe("PARIS")
+    expect(normalizeAgency("paris")).toBe("PARIS")
+  })
+  it("ne devine JAMAIS : un libellé sans ville rend null", () => {
+    // Cas du tenant au 15/09 : une seule agence, « SMALL », sur 65/65 fiches.
+    expect(normalizeAgency("SMALL")).toBeNull()
+    expect(normalizeAgency("")).toBeNull()
+    expect(normalizeAgency(null)).toBeNull()
+    expect(normalizeAgency("Lyon")).toBeNull()
+  })
+})
 
 describe("pickDailyRate (TJM fiche, a17)", () => {
   it("nombre positif → gardé ; 0, vide, non numérique → null", () => {

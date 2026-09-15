@@ -51,6 +51,7 @@ function bp(over: Partial<BoondPerson>): BoondPerson {
     dailyRate: null,
     agency: null,
     agencyRaw: null,
+    agencyNoInfo: false,
     managerBoondId: null,
     excluded: false,
     activeState: true,
