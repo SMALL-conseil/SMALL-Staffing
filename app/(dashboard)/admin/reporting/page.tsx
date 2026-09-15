@@ -302,9 +302,15 @@ export default async function ReportingPage({
   )
 }
 
-/** Format compact d'un montant (k€ / M€) pour les notes. */
+/**
+ * Montant EXACT, à l'euro (a38).
+ *
+ * L'ancien format compact arrondissait au dixième de million : le réalisé
+ * s'affichait « 3,5 M€ » pour 3 488 775 €, et la légende semblait alors
+ * contredire le total du donut (3,5 + 0,195 ≠ 3,68). Deux nombres arrondis
+ * qu'on additionne face à un total exact, et c'est la confiance dans le KPI
+ * qui part — pour un simple effet d'affichage. On écrit donc les euros.
+ */
 function fmtCa(v: number): string {
-  return v >= 1_000_000
-    ? `${(v / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} M€`
-    : `${Math.round(v / 1000).toLocaleString("fr-FR")} k€`
+  return `${Math.round(v).toLocaleString("fr-FR").replace(/\u202f|\u00a0/g, " ")} €`
 }
