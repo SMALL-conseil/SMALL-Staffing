@@ -38,6 +38,10 @@ type Db = PrismaClient | Prisma.TransactionClient
 export interface SyncReport {
   received: number
   pages: number
+  /** Variable d'environnement dont le jeton a lu le flux (a27) — le périmètre
+   *  de visibilité du COMPTE décide de qui figure dans le flux : le compte
+   *  standard ne voit qu'une agence (65), le compte financier les deux (75). */
+  jeton: string
   updated: number
   created: number
   adopted: number
@@ -80,9 +84,9 @@ export interface SyncReport {
   errors: string[]
 }
 
-function emptyReport(received: number, pages: number): SyncReport {
+function emptyReport(received: number, pages: number, jeton: string): SyncReport {
   return {
-    received, pages, updated: 0, created: 0, adopted: 0, managersLinked: 0,
+    received, pages, jeton, updated: 0, created: 0, adopted: 0, managersLinked: 0,
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
@@ -121,9 +125,10 @@ export async function runBoondSync(
   db: Db,
   items: BoondPerson[],
   pages: number,
-  fetchDetail?: DetailFetcher
+  fetchDetail?: DetailFetcher,
+  jeton = "BOOND_USER_TOKEN"
 ): Promise<SyncReport> {
-  const report = emptyReport(items.length, pages)
+  const report = emptyReport(items.length, pages, jeton)
   if (!items.length) {
     report.errors.push("Flux Boond vide — synchronisation annulée par sécurité.")
     return report
@@ -390,7 +395,7 @@ class DryRunRollback extends Error {
 export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncReport> {
   const dryRun = opts.dryRun === true
   const startedAt = new Date()
-  const { resources, included, pages } = await fetchResources()
+  const { resources, included, pages, jeton } = await fetchResources()
   // `included` porte le nom des agences (s5) — sans lui, la relation n'est
   // qu'un identifiant (même leçon que pour le manager, a8).
   const idx = indexIncluded(included)
@@ -401,7 +406,7 @@ export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncRe
     let out: SyncReport | undefined
     try {
       await prisma.$transaction(async (tx) => {
-        out = await runBoondSync(tx, items, pages, fetchResourceDetail)
+        out = await runBoondSync(tx, items, pages, fetchResourceDetail, jeton)
         throw new DryRunRollback()
       }, { maxWait: 10_000, timeout: 120_000 })
     } catch (e) {
@@ -409,7 +414,7 @@ export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncRe
     }
     report = out as SyncReport
   } else {
-    report = await runBoondSync(prisma, items, pages, fetchResourceDetail)
+    report = await runBoondSync(prisma, items, pages, fetchResourceDetail, jeton)
   }
 
   // Journal (aussi en dry run — le rapport est la valeur du test)

@@ -12,7 +12,7 @@
 //     fonctionne → la synchro incrémentale descend les pages en ordre
 //     décroissant jusqu'à sa fenêtre.
 // ============================================================
-import { buildJwt } from "./boond"
+import { buildJwt, jetonLecture } from "./boond"
 
 const BASE = process.env.BOOND_BASE_URL || "https://ui.boondmanager.com/api"
 const JWT_HEADER = process.env.BOOND_JWT_HEADER || "X-Jwt-Client-BoondManager"
@@ -46,8 +46,11 @@ export async function fetchTimesPage(page: number, order: "asc" | "desc" | null)
     `${BASE}/times?page=${page}&maxResults=100&maxPerPage=100` +
     (order ? `&sort=startDate&order=${order}` : "") +
     `&include=${encodeURIComponent(TIMES_INCLUDE)}`
+  // a27 — MÊME jeton que le flux des personnes : un compte au périmètre partiel
+  // ne rend que les CRA de son agence (les jours bordelais manquaient, donc le
+  // CA réel et le détecteur de missions manquantes étaient aveugles à Bordeaux).
   const res = await fetch(url, {
-    headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
+    headers: { [JWT_HEADER]: buildJwt(jetonLecture().token), Accept: "application/json" },
     cache: "no-store",
   })
   if (!res.ok) throw new Error(`Boond /times HTTP ${res.status} (page ${page})`)

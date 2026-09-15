@@ -218,6 +218,10 @@ Côté Boond : relation `BOOND_AGENCY_REL` (défaut `agency`), nom résolu via
 `included` (leçon a8), normalisé par MOT-CLÉ (`normalizeAgency` :
 « SMALL Bordeaux » → BORDEAUX) ; agence **jamais effacée** par un flux muet
 (une saisie au registre survit), non reconnue = signalée au rapport.
+🔴 **CE PARAGRAPHE A ÉTÉ DÉMENTI — lire d'abord a27, plus bas.** Le tenant
+porte bien « SMALL BORDEAUX » ; c'est le COMPTE qui la cachait. Conservé parce
+qu'il explique comment on s'est trompé.
+
 ⚠️ **Relevé du 15/09 (a24/a25)** : le tenant n'a qu'UNE agence, « SMALL »,
 portée par les 65 ressources, et aucun `pole` affecté — **Boond ne connaît pas
 la distinction Paris/Bordeaux**. **L'app Formation a fait le même constat le
@@ -261,6 +265,43 @@ chemin court. `scripts/agences.ts` pose l'agence EN LOT (répétition par
 défaut, `--appliquer` pour écrire ; rapprochement par email puis par nom
 normalisé, entrée non rapprochée = signalée et rien d'écrit ; `--etat` pour la
 photo courante).
+
+### 🔑 a27 (15/09) — LE PÉRIMÈTRE DE VISIBILITÉ DU COMPTE (leçon majeure)
+
+Le relevé a26 a tranché, et il renverse a24/a25 : **Boond porte Bordeaux depuis
+toujours — c'est le COMPTE qui le cachait.**
+
+| | jeton standard | jeton financier |
+|---|---|---|
+| ressources vues | **65** | **75** |
+| agences | « SMALL » ×65 | « SMALL » ×65 + **« SMALL BORDEAUX » ×10** |
+
+`normalizeAgency("SMALL BORDEAUX")` → BORDEAUX : aucune règle à écrire, la
+donnée arrive seule. Les 10 bordelais n'étaient pas « sans agence » : ils
+étaient **absents du flux**. D'où l'onglet Bordeaux vide de personnes ET de
+missions, et un registre amputé sans le moindre message d'erreur — un flux
+tronqué ressemble en tout point à un flux complet.
+
+**Règle** : le flux des PERSONNES et celui des CRA (`/times`) se lisent avec le
+même compte, résolu par `jetonLecture()` (`lib/boond.ts`) :
+`BOOND_RESOURCES_USER_TOKEN` → `BOOND_FINANCE_USER_TOKEN` → `BOOND_USER_TOKEN`.
+La variable retenue remonte au rapport (`SyncReport.jeton`) et s'affiche sur la
+carte de synchro : **jamais de bascule muette**, et un flux amputé se repère à
+l'œil (65 vs 75). Testé dans `tests/boond-pure.test.ts`.
+
+**Réflexe à garder** : devant un flux Boond qui « ne contient pas » quelque
+chose, comparer d'abord le NOMBRE d'objets rendus par deux comptes différents
+avant de conclure que le tenant ne porte pas l'information. Un 403 se voit ; un
+périmètre restreint, non — il rend un 200 avec moins de lignes. Les autres
+signes, ici : `/agencies`, `/poles`, `/projects` et `?keywords=` en 403 pour le
+compte standard, et `included` ne contenant qu'UN objet `agency`.
+
+Corollaires : la relation `pole` est exposée sur 65/65 mais **vide** (aucun id)
+— les pôles restent à créer si l'on veut un découpage plus fin que l'agence ;
+et `?keywords=bordeaux` rend 5 personnes qui n'ont de bordelais que leur
+diplôme ou une expérience passée (`attributes.diplomas`,
+`references[].description`). **Ne JAMAIS déduire un rattachement d'un texte de
+CV** : seule la relation `agency` fait foi.
 
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 

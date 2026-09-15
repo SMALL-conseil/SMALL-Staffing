@@ -1,8 +1,52 @@
-import { describe, expect, it } from "vitest"
-import { extractPerson, normDate, normalizeAgency, normalizeTitle, pickDailyRate, pickEmail } from "@/lib/boond"
+import { afterEach, describe, expect, it } from "vitest"
+import {
+  extractPerson,
+  jetonLecture,
+  normDate,
+  normalizeAgency,
+  normalizeTitle,
+  pickDailyRate,
+  pickEmail,
+} from "@/lib/boond"
+
+describe("jetonLecture (a27) — quel COMPTE lit le flux", () => {
+  // Relevé du 15/09 : le compte standard ne voit que 65 ressources (agence
+  // « SMALL »), le compte financier 75 (« SMALL » ×65 + « SMALL BORDEAUX » ×10).
+  // Lire le flux avec un compte au périmètre partiel ampute le registre.
+  const sauvegarde = { ...process.env }
+  afterEach(() => {
+    process.env = { ...sauvegarde }
+  })
+
+  it("préfère la variable dédiée (permet de FORCER un compte)", () => {
+    process.env.BOOND_RESOURCES_USER_TOKEN = "dedie"
+    process.env.BOOND_FINANCE_USER_TOKEN = "finance"
+    process.env.BOOND_USER_TOKEN = "standard"
+    expect(jetonLecture()).toEqual({ token: "dedie", source: "BOOND_RESOURCES_USER_TOKEN" })
+  })
+  it("à défaut, le jeton financier — celui qui voit les DEUX agences", () => {
+    delete process.env.BOOND_RESOURCES_USER_TOKEN
+    process.env.BOOND_FINANCE_USER_TOKEN = "finance"
+    process.env.BOOND_USER_TOKEN = "standard"
+    expect(jetonLecture()).toEqual({ token: "finance", source: "BOOND_FINANCE_USER_TOKEN" })
+  })
+  it("sinon le jeton standard, et la source est TOUJOURS dite (jamais de bascule muette)", () => {
+    delete process.env.BOOND_RESOURCES_USER_TOKEN
+    delete process.env.BOOND_FINANCE_USER_TOKEN
+    process.env.BOOND_USER_TOKEN = "standard"
+    expect(jetonLecture()).toEqual({ token: undefined, source: "BOOND_USER_TOKEN" })
+  })
+  it("une variable vide ou en blancs ne compte pas", () => {
+    process.env.BOOND_RESOURCES_USER_TOKEN = "   "
+    process.env.BOOND_FINANCE_USER_TOKEN = ""
+    expect(jetonLecture().source).toBe("BOOND_USER_TOKEN")
+  })
+})
 
 describe("normalizeAgency (s5)", () => {
   it("reconnaît la ville dans le libellé, quelle que soit sa forme", () => {
+    // Libellé RÉEL du tenant, vu avec le jeton financier (a27) : « SMALL BORDEAUX ».
+    expect(normalizeAgency("SMALL BORDEAUX")).toBe("BORDEAUX")
     expect(normalizeAgency("SMALL Bordeaux")).toBe("BORDEAUX")
     expect(normalizeAgency("Agence de BORDEAUX")).toBe("BORDEAUX")
     expect(normalizeAgency("SMALL-CONSEIL Paris")).toBe("PARIS")
@@ -13,7 +57,9 @@ describe("normalizeAgency (s5)", () => {
     expect(normalizeAgency("Pôle BDX")).toBe("BORDEAUX")
   })
   it("ne devine JAMAIS : un libellé sans ville rend null", () => {
-    // Cas du tenant au 15/09 : une seule agence, « SMALL », sur 65/65 fiches.
+    // « SMALL » (l'agence parisienne) ne PORTE pas de ville : sans réglage, la
+    // colonne reste nulle — lecture par défaut Paris, jamais d'écriture devinée.
+    // (BOOND_AGENCY_MAP="SMALL=PARIS" la rend explicite si on le souhaite.)
     expect(normalizeAgency("SMALL")).toBeNull()
     expect(normalizeAgency("")).toBeNull()
     expect(normalizeAgency(null)).toBeNull()

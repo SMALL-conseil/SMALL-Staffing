@@ -111,6 +111,7 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
               <p className="text-[12.5px] font-bold text-anthracite">
                 {report.dryRun ? "Répétition (rien n'a été écrit)" : "Synchronisation effectuée"} —{" "}
                 {report.received} ressource(s) reçue(s)
+                {report.jeton ? ` · flux lu par ${report.jeton}` : ""}
               </p>
               <p className="text-[12px] text-texte mt-1">
                 {report.created} créé(s)

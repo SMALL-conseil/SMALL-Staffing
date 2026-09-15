@@ -95,6 +95,29 @@ export function buildJwt(userTokenOverride?: string): string {
   return `${header}.${payload}.${sig}`
 }
 
+/**
+ * Jeton de LECTURE des flux (ressources, CRA) — a27, 15/09/2026.
+ *
+ * Relevé décisif : le compte STANDARD a un PÉRIMÈTRE DE VISIBILITÉ RESTREINT.
+ * Il ne voit que 65 ressources, toutes d'agence « SMALL », et conclut donc à
+ * tort que BoondManager ignore Bordeaux. Le compte financier voit **75**
+ * ressources et **deux** agences : « SMALL » ×65 et « SMALL BORDEAUX » ×10.
+ * Autrement dit l'information a toujours été là — c'est le compte qui la
+ * cachait. Lire le flux des personnes avec un compte à périmètre partiel,
+ * c'est amputer le registre de 10 consultants (et leurs CRA).
+ *
+ * Ordre : variable dédiée (permet de FORCER un compte, y compris le standard),
+ * puis le jeton financier s'il existe, puis le jeton standard. La source est
+ * rendue au rapport de synchro : jamais de bascule muette.
+ */
+export function jetonLecture(): { token?: string; source: string } {
+  const dedie = (process.env.BOOND_RESOURCES_USER_TOKEN || "").trim()
+  if (dedie) return { token: dedie, source: "BOOND_RESOURCES_USER_TOKEN" }
+  const finance = (process.env.BOOND_FINANCE_USER_TOKEN || "").trim()
+  if (finance) return { token: finance, source: "BOOND_FINANCE_USER_TOKEN" }
+  return { token: undefined, source: "BOOND_USER_TOKEN" }
+}
+
 export type BoondResource = {
   id: string
   type?: string
@@ -113,8 +136,10 @@ export async function fetchResources(): Promise<{
   resources: BoondResource[]
   included: BoondResource[]
   pages: number
+  jeton: string
 }> {
-  const headers = { [JWT_HEADER]: buildJwt(), Accept: "application/json" }
+  const { token, source } = jetonLecture()
+  const headers = { [JWT_HEADER]: buildJwt(token), Accept: "application/json" }
   const out: BoondResource[] = []
   const inc: BoondResource[] = []
   let page = 1
@@ -137,7 +162,7 @@ export async function fetchResources(): Promise<{
     if (!data.length || (typeof total === "number" && out.length >= total)) break
     page++
   }
-  return { resources: out, included: inc, pages: page }
+  return { resources: out, included: inc, pages: page, jeton: source }
 }
 
 // ------------------------------------------------------------
@@ -231,7 +256,7 @@ export function pickArrivalFromDetail(a: Record<string, unknown>): string | null
 /** GET /resources/{id} — attributs du détail (dates contrat, etc.). */
 export async function fetchResourceDetail(boondId: string): Promise<Record<string, unknown>> {
   const res = await fetch(`${BASE}/resources/${boondId}`, {
-    headers: { [JWT_HEADER]: buildJwt(), Accept: "application/json" },
+    headers: { [JWT_HEADER]: buildJwt(jetonLecture().token), Accept: "application/json" },
     cache: "no-store",
   })
   if (!res.ok) throw new Error(`Boond /resources/${boondId} HTTP ${res.status}`)
