@@ -14,7 +14,8 @@
 //  Lecture seule : rien n'est écrit, ni dans le classeur, ni en base.
 // ============================================================
 import "dotenv/config"
-import { statSync } from "fs"
+import { readdirSync, statSync } from "fs"
+import { join } from "path"
 import { prisma } from "../lib/prisma"
 import { loadStaffingData } from "../lib/staffing-load"
 import { monthlyKpis, staffableDays, staffedDays, workingDaysInMonth } from "../lib/staffing"
@@ -51,24 +52,72 @@ function agregats(c: Cote, year: number, month: number) {
   return { sta, stf, taux: sta > 0 ? stf / sta : 0, parPersonne }
 }
 
+/** Erreur de manipulation (chemin, argument…) : le message suffit, la pile
+ *  d'appels n'apprend rien à qui lance la commande. */
+class ErreurUtilisateur extends Error {}
+
+/**
+ * Résout l'argument vers un CLASSEUR : accepte le fichier .xlsx, ou un DOSSIER
+ * dans lequel le chercher (Bureau OneDrive, bibliothèque Teams synchronisée…).
+ * Les fichiers de verrouillage Excel (« ~$… ») sont ignorés ; en cas de
+ * plusieurs candidats, ceux dont le nom contient « staffing » l'emportent,
+ * puis le plus récemment modifié — et le choix est ANNONCÉ.
+ */
+function resoudreClasseur(cible: string): string {
+  let st
+  try {
+    st = statSync(cible)
+  } catch {
+    throw new ErreurUtilisateur(
+      `Chemin introuvable : ${cible}\n` +
+        `  (sur un chemin OneDrive/SharePoint, vérifier les guillemets et les accents)`
+    )
+  }
+  if (st.isFile()) return cible
+  if (!st.isDirectory()) throw new ErreurUtilisateur(`Ni fichier ni dossier : ${cible}`)
+
+  const candidats = readdirSync(cible)
+    .filter((f) => /\.xlsx$/i.test(f) && !f.startsWith("~$"))
+    .map((f) => ({ f, chemin: join(cible, f), mtime: statSync(join(cible, f)).mtimeMs }))
+    .sort(
+      (a, b) =>
+        Number(/staffing/i.test(b.f)) - Number(/staffing/i.test(a.f)) || b.mtime - a.mtime
+    )
+  if (!candidats.length)
+    throw new ErreurUtilisateur(
+      `Aucun classeur .xlsx dans le dossier : ${cible}\n` +
+        `  Donner le chemin du FICHIER, par exemple :\n` +
+        `  npx tsx scripts/compare-excel.ts "${join(cible, "Staffing SMALL Paris.xlsx")}"`
+    )
+  if (candidats.length > 1) {
+    console.log(`Dossier reçu — ${candidats.length} classeurs trouvés :`)
+    for (const c of candidats) console.log(`   ${c.f}`)
+  }
+  console.log(`→ classeur retenu : ${candidats[0].f}\n`)
+  return candidats[0].chemin
+}
+
 function titre(n: string) {
   console.log(`\n${"═".repeat(72)}\n${n}\n${"═".repeat(72)}`)
 }
 
 async function main() {
   const args = process.argv.slice(2)
-  const path = args.find((a) => !a.startsWith("--"))
-  if (!path) {
-    console.error('Usage : npx tsx scripts/compare-excel.ts "<chemin du xlsx>" [AAAA-MM]')
+  const moisArg = args.find((a) => /^\d{4}-\d{2}$/.test(a))
+  const cible = args.find((a) => !a.startsWith("--") && a !== moisArg)
+  if (!cible) {
+    console.error(
+      'Usage : npx tsx scripts/compare-excel.ts "<chemin du classeur .xlsx OU de son dossier>" [AAAA-MM]'
+    )
     process.exit(1)
   }
-  const moisArg = args.find((a) => /^\d{4}-\d{2}$/.test(a))
+  const chemin = resoudreClasseur(cible)
   const today = todayParis()
   const year = Number((moisArg ?? today).slice(0, 4))
   const month = Number((moisArg ?? today).slice(5, 7))
 
   // --- Les deux côtés, même moteur -----------------------------------------
-  const reg = readRegistres(path)
+  const reg = readRegistres(chemin)
   const excel: Cote = toEngineInputs(reg) // TEL QUEL (Elvire incluse) = ce qu'affiche l'Excel
   const db = await loadStaffingData()
   const app: Cote = { people: db.people, missions: db.missions }
@@ -79,8 +128,8 @@ async function main() {
   const kA = monthlyKpis(app.people, app.missions, year, month)
 
   titre(`COMPARAISON Excel ↔ app — ${MOIS_LONGS[month - 1]} ${year}`)
-  console.log(`Classeur : ${path}`)
-  console.log(`           modifié le ${statSync(path).mtime.toLocaleString("fr-FR")}`)
+  console.log(`Classeur : ${chemin}`)
+  console.log(`           modifié le ${statSync(chemin).mtime.toLocaleString("fr-FR")}`)
   console.log(`Registres : Excel ${reg.consultants.length} consultants / ${reg.missions.length} missions`)
   console.log(`            app   ${app.people.length} consultants / ${app.missions.length} missions`)
 
@@ -221,7 +270,8 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error(e)
+    if (e instanceof ErreurUtilisateur) console.error(`\n${e.message}\n`)
+    else console.error(e)
     process.exit(1)
   })
   .finally(() => prisma.$disconnect())
