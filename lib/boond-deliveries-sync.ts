@@ -81,6 +81,8 @@ export async function runDeliveriesSync(
         typeOf: d.typeOf,
         projectBoondId: d.projectBoondId,
         projectName: projet?.reference ?? null,
+        resourceBoondId: d.resourceBoondId,
+        workingDays: d.workingDays,
         clientName: projet?.clientName ?? clientParPrestation.get(id) ?? null,
         syncedAt: now,
       }

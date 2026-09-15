@@ -5,6 +5,8 @@ import { Role, PersonKind } from "@/lib/types"
 import { toIsoDate } from "@/lib/staffing-load"
 import { todayParis } from "@/lib/staffing-ui"
 import MissionsAdmin from "./MissionsAdmin"
+import PropositionsCard from "./PropositionsCard"
+import { chargePropositions } from "@/lib/missions-proposees-load"
 
 // Registre des missions (ADMIN) — la saisie qui remplace l'Excel.
 export default async function AdminMissionsPage() {
@@ -41,6 +43,9 @@ export default async function AdminMissionsPage() {
   const clients = [...new Set(rows.map((m) => m.client))].sort((a, b) => a.localeCompare(b, "fr"))
   const enCours = rows.filter((m) => m.start <= today && today <= m.end)
 
+  // s8 — ce que les prestations Boond proposent et que le registre ignore.
+  const proposees = await chargePropositions()
+
   const kpis = [
     { label: "Missions", value: rows.length, underline: "bg-jaune-doux" },
     { label: "En cours", value: enCours.length, underline: "bg-rose" },
@@ -69,6 +74,25 @@ export default async function AdminMissionsPage() {
           </div>
         ))}
       </div>
+
+      <PropositionsCard
+        propositions={proposees.liste.map((p) => ({
+          boondId: p.boondId,
+          personName: p.personName,
+          agency: p.agency,
+          client: p.client,
+          start: p.start,
+          end: p.end,
+          fees: p.fees,
+          share: p.share,
+          motifShare: p.motifShare,
+          chevauche: p.chevauche,
+          joursPointes: p.joursPointes,
+        }))}
+        prestations={proposees.prestations}
+        sansRessource={proposees.sansRessource}
+        sansFiche={proposees.sansFiche}
+      />
 
       <MissionsAdmin missions={rows} consultants={consultants} clients={clients} />
     </div>

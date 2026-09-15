@@ -29,6 +29,9 @@ const DATA = {
   relationships: {
     project: { data: { id: "12", type: "project" } },
     contract: { data: null },
+    // s8 — la ressource qui exécute la prestation, relevée le 15/09 : elle
+    // arrive sous « dependsOn », pas sous « resource ».
+    dependsOn: { data: { id: "31", type: "resource" } },
   },
 }
 
@@ -44,6 +47,8 @@ describe("extractDelivery (s6)", () => {
       state: "0",
       typeOf: "1",
       projectBoondId: "12",
+      resourceBoondId: "31",
+      workingDays: 218,
     })
   })
 

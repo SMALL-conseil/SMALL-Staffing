@@ -1,0 +1,171 @@
+"use client"
+
+// Missions proposées par les prestations Boond (s8) — registre Siège.
+//
+// Les prestations PROPOSENT, elles n'écrivent pas : rien n'entre au registre
+// sans un clic. Chaque ligne montre ce qui sera créé — personne, client, dates,
+// part, honoraires — et les jours de CRA déjà pointés, qui sont la preuve que
+// la mission a bien eu lieu.
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Plus } from "lucide-react"
+import { formatDateShort } from "@/lib/utils"
+
+export interface PropositionUI {
+  boondId: string
+  personName: string
+  agency: string | null
+  client: string
+  start: string
+  end: string
+  fees: number | null
+  share: number
+  motifShare: string
+  chevauche: string | null
+  joursPointes: number
+}
+
+interface Props {
+  propositions: PropositionUI[]
+  prestations: number
+  sansRessource: number
+  sansFiche: number
+}
+
+export default function PropositionsCard({ propositions, prestations, sansRessource, sansFiche }: Props) {
+  const router = useRouter()
+  const [enCours, setEnCours] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null)
+  const [confirmTout, setConfirmTout] = useState(false)
+  // « Tout créer » n'emporte que les propositions SANS recouvrement : une
+  // mission parallèle chez un autre client se crée à l'unité, en connaissance
+  // de cause.
+  const franches = propositions.filter((p) => !p.chevauche)
+
+  async function creer(boondIds: string[], etiquette: string) {
+    setEnCours(etiquette)
+    setMessage(null)
+    try {
+      const res = await fetch("/api/missions/proposees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boondIds }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessage({ ok: false, texte: data?.error ?? "Création impossible" })
+      } else {
+        setMessage({
+          ok: true,
+          texte: `${data.creees} mission(s) créée(s) au registre.`,
+        })
+        router.refresh()
+      }
+    } catch {
+      setMessage({ ok: false, texte: "Appel impossible — vérifier la connexion" })
+    }
+    setEnCours(null)
+    setConfirmTout(false)
+  }
+
+  if (!prestations) {
+    return (
+      <div className="card px-6 py-6 mb-5">
+        <h2 className="titre-section">Missions proposées par Boond</h2>
+        <p className="text-[12.5px] text-texte-2 mt-2">
+          Aucune prestation en base. Synchroniser les prestations depuis /admin/reporting
+          (elles s&rsquo;énumèrent à partir des jours de CRA : recharger l&rsquo;historique d&rsquo;abord).
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card px-6 py-6 mb-5">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="titre-section">Missions proposées par Boond</h2>
+          <p className="text-[11.5px] text-label mt-1">
+            {prestations} prestation(s) connue(s) · {propositions.length} sans mission au registre
+            {sansFiche > 0 && ` · ${sansFiche} sur une ressource absente du registre`}
+            {sansRessource > 0 && ` · ${sansRessource} sans ressource dans Boond`}
+          </p>
+        </div>
+        {franches.length > 1 && (
+          <button
+            type="button"
+            onClick={() =>
+              confirmTout ? creer(franches.map((p) => p.boondId), "tout") : setConfirmTout(true)
+            }
+            disabled={enCours !== null}
+            className={`btn ${confirmTout ? "btn-primary" : "btn-ghost"}`}
+            title="Les propositions qui chevauchent une mission existante sont exclues — à créer une par une"
+          >
+            {enCours === "tout"
+              ? "Création…"
+              : confirmTout
+                ? `Confirmer : créer les ${franches.length} ?`
+                : `Créer les ${franches.length} sans recouvrement`}
+          </button>
+        )}
+      </div>
+
+      {message && (
+        <p className={`text-[12.5px] mt-3 ${message.ok ? "text-ok" : "text-err"}`}>{message.texte}</p>
+      )}
+
+      {propositions.length === 0 ? (
+        <p className="text-[12.5px] text-texte-2 mt-3">
+          Chaque prestation Boond a sa mission au registre. 👍
+        </p>
+      ) : (
+        <div className="divide-y divide-fond mt-3">
+          {propositions.map((p) => (
+            <div key={p.boondId} className="py-2.5 grid grid-cols-12 gap-2 items-center text-[12.5px]">
+              <div className="col-span-3 font-bold text-anthracite truncate">
+                {p.personName}
+                {p.agency === "BORDEAUX" && (
+                  <span className="text-[10.5px] text-label font-normal ml-2">Bordeaux</span>
+                )}
+              </div>
+              <div className="col-span-3 text-texte truncate" title={p.client}>
+                {p.client}
+              </div>
+              <div className="col-span-3 text-texte-2 text-[12px]">
+                {formatDateShort(p.start)} → {formatDateShort(p.end)}
+                <span className="block text-[10.5px] text-label">
+                  {p.fees !== null ? `${p.fees} € / j · ` : "sans TJM · "}
+                  part {p.share}
+                  {p.joursPointes > 0 ? ` · ${p.joursPointes} j pointés` : " · aucun jour pointé"}
+                </span>
+                {p.chevauche && (
+                  <span className="block text-[10.5px] text-err mt-0.5">
+                    chevauche « {p.chevauche} » — temps partagé ? à vérifier
+                  </span>
+                )}
+              </div>
+              <div className="col-span-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => creer([p.boondId], p.boondId)}
+                  disabled={enCours !== null}
+                  className="btn btn-ghost py-1"
+                  title={p.motifShare}
+                >
+                  <Plus size={13} aria-hidden="true" />
+                  {enCours === p.boondId ? "Création…" : "Créer"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="text-[11px] text-label mt-3">
+        La part d&rsquo;intervention est <em>déduite</em> des jours vendus (survoler « Créer » pour
+        le détail) : Boond ne la porte pas. À corriger au registre si besoin — une mission créée
+        ici est une mission ordinaire, que la synchro ne réécrira jamais.
+      </p>
+    </div>
+  )
+}

@@ -174,9 +174,18 @@ model Delivery {
   projectBoondId String?
   projectName    String?
   clientName     String?
+  /// s8 — la RESSOURCE qui exécute la prestation (relation Boond `dependsOn`,
+  /// relevé du 15/09). C'est elle qui rend les missions fabricables : une
+  /// prestation devient « personne + client + dates + TJM ».
+  resourceBoondId String?
+  /// Jours ouvrés de référence portés par la prestation (numberOfWorkingDays) —
+  /// sert à proposer une part d'intervention quand les jours vendus sont
+  /// nettement inférieurs.
+  workingDays    Float?
   syncedAt       DateTime
 
   @@index([projectBoondId])
+  @@index([resourceBoondId])
 }
 
 model SyncRun {

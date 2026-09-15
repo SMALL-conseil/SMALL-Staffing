@@ -42,6 +42,11 @@ export interface BoondDelivery {
   state: string | null
   typeOf: string | null
   projectBoondId: string | null
+  /** s8 — ressource qui EXÉCUTE la prestation : relation `dependsOn` (relevé du
+   *  15/09 ; `resource` accepté au cas où le tenant la nommerait ainsi). */
+  resourceBoondId: string | null
+  /** Jours ouvrés de référence (numberOfWorkingDays) — null si absent. */
+  workingDays: number | null
 }
 
 const str = (v: unknown): string | null => (v === undefined || v === null || v === "" ? null : String(v))
@@ -78,6 +83,8 @@ export function extractDelivery(boondId: string, data: J | undefined): BoondDeli
     state: str(a.state),
     typeOf: str(a.typeOf),
     projectBoondId: relId(data, "project"),
+    resourceBoondId: relId(data, "dependsOn") ?? relId(data, "resource"),
+    workingDays: num(a.numberOfWorkingDays),
   }
 }
 

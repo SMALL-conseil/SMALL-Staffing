@@ -357,6 +357,44 @@ ACTIVES en agence « SMALL BORDEAUX », sans aucune date de fin. Bonne nouvelle 
 cette date de départ EST la date du transfert — le script la reprend (lendemain)
 et rien n'est à retrouver à la main.
 
+### Missions proposées par les prestations Boond (s8, 15/09)
+
+Relevé du 15/09 (`scripts/boond-missions-possibles.ts`) : `/deliveries/{id}`
+porte **`dependsOn = resource#NN`**, donc la PERSONNE — plus les dates, le TJM
+vendu, les jours vendus et le projet (→ le client). Une prestation contient donc
+tout ce qu'est une mission, à une exception près : la PART d'intervention, qui
+n'existe nulle part dans Boond.
+
+**Décision du 15/09 (Sacha) : les prestations PROPOSENT, elles n'écrivent pas.**
+Le registre des missions reste la source de vérité — une mission saisie ou
+corrigée à la main n'est jamais réécrite, et rien n'entre sans qu'un humain
+l'ait vu. Même contrat que la synchro des personnes.
+
+- `lib/missions-proposees.ts` (pur, 16 tests) : `propositions()` retient les
+  prestations qu'aucune mission ne couvre. « Couvrir » = même personne, fenêtre
+  qui chevauche **ET même client** (`memeClient`, comparaison par inclusion sur
+  libellés normalisés : « GROUPAMA » / « Groupama », « FDJ » / « FDJ - Française
+  des jeux »). ⚠️ Le client COMPTE : une personne peut tenir deux missions en
+  parallèle chez deux clients — c'est l'objet même de la part d'intervention.
+  Un recouvrement chez un AUTRE client n'élimine donc pas la proposition, il la
+  **signale** (`chevauche`), et « Tout créer » l'exclut. `partProposee()` déduit
+  la part des jours vendus rapportés aux jours ouvrés de la fenêtre : au-dessus
+  de 0,7 → temps plein ; en dessous → arrondi au quart, motif affiché. Dans le
+  doute : 1. Mieux vaut une part visiblement à vérifier qu'un chiffre inventé
+  qui a l'air juste.
+- `Delivery.resourceBoondId` + `workingDays` (migration `s8_delivery_resource`).
+- `POST /api/missions/proposees` (gate Siège) : le client n'envoie que des
+  IDENTIFIANTS de prestation — dates, client, TJM et part sont TOUJOURS
+  recalculés côté serveur. Une page ouverte depuis une heure ou une requête
+  forgée ne peut donc pas écrire une mission de son choix. Transaction unique
+  (le lot entier ou rien), 409 si la proposition n'en est plus une, honoraires
+  omis sur une mission non commencée (même règle que la saisie manuelle).
+- Carte dans `/admin/missions` : personne, client, dates, part, TJM, jours de
+  CRA déjà pointés (la preuve que la mission a eu lieu), agence, et le motif de
+  la part au survol.
+Vérifié en navigateur réel : création à l'unité, la 2e proposition survit avec
+son signalement de recouvrement, rejeu de la même prestation → 409.
+
 ### Grade corrigeable au registre (a30, 15/09)
 
 Le Suivi_Effectif ne compte QUE les grades de la grille (fidèle à l'Excel) : un
