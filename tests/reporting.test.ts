@@ -188,6 +188,64 @@ describe("cascade des taux (a17) : fees mission > TJM fiche > exclu", () => {
   })
 })
 
+describe("CA au TJM de la PRESTATION (s6)", () => {
+  const j = (over: Partial<ReportingJour>): ReportingJour => ({
+    personId: "p1", date: "2026-03-10", duration: 1, clientName: null, ...over,
+  })
+
+  it("le TJM de la prestation l'emporte sur les honoraires ET sur le TJM fiche", () => {
+    const out = caParClientReel(
+      [m({ client: "GROUPAMA", fees: 800, defaultRate: 950 })],
+      [j({ date: "2026-03-10", dailyRate: 1250 })],
+      2026,
+      TODAY
+    )
+    expect(out.caReel).toBeCloseTo(1250, 5) // ni 800, ni 950
+    expect(out.joursAuTjmPrestation).toBe(1)
+    expect(out.joursALaCascade).toBe(0)
+  })
+
+  it("sans prestation connue, la cascade reprend la main (et se compte à part)", () => {
+    const out = caParClientReel(
+      [m({ client: "GROUPAMA", fees: 800 })],
+      [j({ date: "2026-03-10", dailyRate: 1250 }), j({ date: "2026-03-11" })],
+      2026,
+      TODAY
+    )
+    expect(out.caReel).toBeCloseTo(1250 + 800, 5)
+    expect(out.joursAuTjmPrestation).toBe(1)
+    expect(out.joursALaCascade).toBe(1)
+  })
+
+  it("un jour SANS mission au registre compte enfin, rattaché au client Boond", () => {
+    const out = caParClientReel(
+      [], // aucune mission : cas d'une recrue arrivée après l'import
+      [j({ date: "2026-04-02", dailyRate: 1100, clientName: "Groupama" })],
+      2026,
+      TODAY
+    )
+    expect(out.caReel).toBeCloseTo(1100, 5)
+    expect(out.entries).toEqual([{ client: "Groupama", ca: 1100, moisFactures: 0 }])
+    expect(out.joursSansMission).toBe(0)
+  })
+
+  it("ni prestation, ni mission, ni client → le jour reste orphelin et signalé", () => {
+    const out = caParClientReel([], [j({ date: "2026-04-02", duration: 0.5 })], 2026, TODAY)
+    expect(out.caReel).toBe(0)
+    expect(out.joursSansMission).toBe(0.5)
+  })
+
+  it("le libellé de la MISSION prime pour le regroupement (couleurs de marque)", () => {
+    const out = caParClientReel(
+      [m({ client: "GROUPAMA", fees: null, defaultRate: null })],
+      [j({ date: "2026-03-10", dailyRate: 1250, clientName: "Groupama" })],
+      2026,
+      TODAY
+    )
+    expect(out.entries[0].client).toBe("GROUPAMA") // pas « Groupama »
+  })
+})
+
 describe("repli des petites parts", () => {
   it("au-delà de 8, replie le reste en « Autres »", () => {
     const slices = Array.from({ length: 11 }, (_, i) => ({ label: `C${i}`, value: 11 - i }))

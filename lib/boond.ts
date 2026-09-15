@@ -67,8 +67,11 @@ function b64url(input: Buffer | string): string {
   return Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-export function buildJwt(): string {
-  const userToken = process.env.BOOND_USER_TOKEN
+/** `userTokenOverride` : jeton d'un AUTRE compte (s6 — le compte « financier »
+ *  qui seul voit les prestations). clientToken/clientKey restent ceux de
+ *  l'application SMALL : seul l'utilisateur change. */
+export function buildJwt(userTokenOverride?: string): string {
+  const userToken = userTokenOverride || process.env.BOOND_USER_TOKEN
   const clientToken = process.env.BOOND_CLIENT_TOKEN
   const clientKey = process.env.BOOND_CLIENT_KEY
   if (!userToken || !clientToken || !clientKey) {

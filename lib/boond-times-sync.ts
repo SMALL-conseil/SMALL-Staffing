@@ -141,6 +141,7 @@ export async function runTimesSync(
       activityType: row.activityType,
       workUnit: row.workUnit,
       projectBoondId: row.projectBoondId,
+      deliveryBoondId: row.deliveryBoondId,
       projectName: row.projectName,
       clientName: row.clientName,
       craState: row.craState,

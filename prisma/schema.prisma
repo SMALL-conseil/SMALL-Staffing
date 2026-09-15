@@ -119,6 +119,9 @@ model TimeEntry {
   workUnit       String
   projectBoondId String?
   projectName    String?
+  /// Prestation Boond de la ligne (s6) — c'est ELLE qui porte le TJM vendu :
+  /// chaque jour est valorisé à son propre taux, sans rapprochement de mission.
+  deliveryBoondId String?
   /// Nom de la company Boond (le CLIENT) — sert au départage multi-missions.
   clientName     String?
   /// État de validation du CRA mensuel (timesReport.state).
@@ -128,6 +131,38 @@ model TimeEntry {
 
   @@index([personId, date])
   @@index([date])
+  @@index([deliveryBoondId])
+}
+
+// Prestation BoondManager (s6) — le contrat d'un consultant sur un projet.
+// C'est l'objet qui porte le PRIX DE VENTE : `dailyRate` (€/jour vendu) et
+// `daysSold` (jours vendus au contrat). Relevé du 15/09 : accessible avec un
+// jeton dont le compte voit le financier ; le listing /deliveries répond 405,
+// on énumère donc par les identifiants portés par les lignes de CRA.
+// ⚠️ DÉCISION DU 15/09 : les COÛTS et MARGES exposés par l'API (coût
+// journalier, marge et rentabilité simulées) ne sont PAS importés — ils
+// trahiraient les salaires. Ne pas les stocker, c'est ne pas avoir à les
+// protéger. Le prix de vente, lui, suit le cloisonnement des honoraires :
+// jamais sérialisé hors des pages gate SIEGE.
+model Delivery {
+  id             String   @id @default(cuid())
+  boondId        String   @unique
+  title          String?
+  startDate      DateTime? @db.Date
+  endDate        DateTime? @db.Date
+  /// Prix de vente € / jour (averageDailyPriceExcludingTax). DONNÉE SIÈGE.
+  dailyRate      Float?
+  /// Jours vendus au contrat (numberOfDaysInvoicedOrQuantity) — permet le
+  /// « vendu vs consommé » face aux jours réellement pointés.
+  daysSold       Float?
+  state          String?
+  typeOf         String?
+  projectBoondId String?
+  projectName    String?
+  clientName     String?
+  syncedAt       DateTime
+
+  @@index([projectBoondId])
 }
 
 model SyncRun {

@@ -78,6 +78,8 @@ export interface BoondTimeRow {
   workUnit: string
   projectBoondId: string | null
   projectName: string | null
+  /** Prestation Boond de la ligne (s6) — porte le TJM vendu. */
+  deliveryBoondId: string | null
   clientName: string | null
   craState: string | null
   craTerm: string | null
@@ -122,6 +124,7 @@ export function extractTimeRows(rows: TimesResource[], included: TimesResource[]
       activityType: str((wut as J).activityType) ?? "?",
       workUnit: str((wut as J).name) ?? "?",
       projectBoondId: relId(r, "project"),
+      deliveryBoondId: relId(r, "delivery"),
       projectName: str(project?.attributes?.reference) ?? str(project?.attributes?.name),
       clientName: str(company?.attributes?.name),
       craState: str(report?.attributes?.state),

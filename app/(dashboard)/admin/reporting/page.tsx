@@ -21,6 +21,7 @@ import { contextePerimetre } from "@/lib/perimetre-session"
 import { dansLePerimetre, libellePerimetre } from "@/lib/perimetre"
 import DonutChart from "@/components/DonutChart"
 import SyncTimesCard from "./SyncTimesCard"
+import SyncDeliveriesCard from "./SyncDeliveriesCard"
 
 // Reporting par client — RÉSERVÉ AU RÔLE SIÈGE (les honoraires transitent
 // ici). Deux répartitions : consultants en mission aujourd'hui, et CA par
@@ -70,15 +71,22 @@ export default async function ReportingPage({
       },
       select: {
         personId: true, date: true, duration: true, clientName: true,
+        deliveryBoondId: true,
         person: { select: { agency: true } },
       },
     })
   ).filter((j) => dansLePerimetre(j.person.agency, perimetre))
+  // TJM VENDU des prestations Boond (s6) — c'est lui qui valorise chaque jour.
+  const prestations = await prisma.delivery.findMany({
+    select: { boondId: true, dailyRate: true },
+  })
+  const tjmParPrestation = new Map(prestations.map((d) => [d.boondId, d.dailyRate]))
   const jours: ReportingJour[] = joursDb.map((j) => ({
     personId: j.personId,
     date: toIsoDate(j.date),
     duration: j.duration,
     clientName: j.clientName,
+    dailyRate: j.deliveryBoondId ? (tjmParPrestation.get(j.deliveryBoondId) ?? null) : null,
   }))
 
   const parClient = consultantsParClient(missions, today)
@@ -107,6 +115,22 @@ export default async function ReportingPage({
   const boondConfigured = Boolean(
     process.env.BOOND_USER_TOKEN && process.env.BOOND_CLIENT_TOKEN && process.env.BOOND_CLIENT_KEY
   )
+  const lastDelivRow = await prisma.syncRun.findFirst({
+    where: { kind: "BOOND_DELIVERIES" },
+    orderBy: { startedAt: "desc" },
+  })
+  const lastDelivReport = (lastDelivRow?.report ?? null) as
+    | { created?: number; updated?: number; errors?: string[] }
+    | null
+  const lastDelivRun = lastDelivRow
+    ? {
+        date: formatDateTimeParis(lastDelivRow.startedAt),
+        dryRun: lastDelivRow.dryRun,
+        ok: lastDelivRow.ok,
+        ecrites: (lastDelivReport?.created ?? 0) + (lastDelivReport?.updated ?? 0),
+        errors: lastDelivReport?.errors?.length ?? 0,
+      }
+    : null
 
   const couleur = (label: string, i: number) =>
     label === "Autres" ? AUTRES_COLOR : clientColor(label, i)
@@ -178,7 +202,12 @@ export default async function ReportingPage({
               : year === currentYear
                 ? `Réel CRA de janvier à ${MOIS_LONGS[reel.moisReelMax - 1]} (jours de production × honoraires €/jour) : ${fmtCa(reel.caReel)} · convention ${JOURS_FACTURES_PAR_AN}/12 pour ${MOIS_LONGS[Number(today.slice(5, 7)) - 1]} : ${fmtCa(reel.caConvention)}.`
                 : `Réel CRA sur les 12 mois de ${year} : jours de production × honoraires (€/jour) des missions.`}
-          {" Taux journalier : honoraires saisis sur la mission, sinon TJM de la fiche Boond (synchro quotidienne)."}
+          {reel && reel.joursAuTjmPrestation > 0
+            ? ` Taux journalier : TJM VENDU de la prestation Boond (${reel.joursAuTjmPrestation.toLocaleString("fr-FR")} j valorisés ainsi)` +
+              (reel.joursALaCascade > 0
+                ? `, et pour ${reel.joursALaCascade.toLocaleString("fr-FR")} j sans prestation connue : honoraires de la mission, sinon TJM de la fiche.`
+                : ".")
+            : " Taux journalier : honoraires saisis sur la mission, sinon TJM de la fiche Boond (synchro quotidienne)."}
         </p>
         {ca.entries.length === 0 ? (
           <p className="text-[13px] text-texte-2">
@@ -213,6 +242,13 @@ export default async function ReportingPage({
       </div>
 
       <SyncTimesCard lastRun={lastTimesRun} boondConfigured={boondConfigured} hasEntries={hasEntries} />
+
+      <SyncDeliveriesCard
+        lastRun={lastDelivRun}
+        boondConfigured={boondConfigured}
+        prestations={prestations.length}
+        avecTjm={prestations.filter((d) => d.dailyRate !== null).length}
+      />
     </div>
   )
 }

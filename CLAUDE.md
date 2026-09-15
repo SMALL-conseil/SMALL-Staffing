@@ -291,6 +291,40 @@ pages — le tri desc ne sert qu'à l'arrêt anticipé de la fenêtre incrément
 ⚠️ SVG côté client : arrondir toute coordonnée calculée (Math.sin/cos) avant
 de la mettre en attribut — floats bruts = erreur d'hydratation (DonutChart, a13).
 
+### Prestations Boond — le prix de vente (s6)
+
+Relevé du 15/09 avec un jeton dont le compte VOIT le financier : `/deliveries/{id}`
+répond 200 et porte `averageDailyPriceExcludingTax` (**TJM vendu**),
+`numberOfDaysInvoicedOrQuantity` (**jours vendus**), dates, état et la relation
+`project` (→ `company` = le client) ; `/projects`, `/orders` et `/invoices`
+répondent aussi. **Le LISTING `/deliveries` est en 405** : on énumère par les
+identifiants de prestation portés par les lignes de CRA (`TimeEntry.deliveryBoondId`),
+c'est-à-dire exactement les prestations sur lesquelles des jours ont été pointés.
+
+⚠️ **DÉCISION DU 15/09 — coûts et marges NON importés** : `averageDailyCost`,
+`costsSimulatedExcludingTax`, `marginSimulatedExcludingTax`, `profitabilitySimulated`
+existent dans la charge utile mais ne sont jamais extraits (ils trahiraient les
+salaires) ; un test l'empêche de régresser. Ne pas les ajouter sans décision
+d'équipe. Le prix de vente, lui, suit le cloisonnement des honoraires.
+
+`lib/boond-deliveries.ts` (client + extraction pure) · `lib/boond-deliveries-sync.ts`
+(upsert idempotent, rien n'est jamais supprimé : le CA des mois écoulés ne doit pas
+bouger dans le dos de l'équipe) · route `/api/boond/sync-deliveries` (cron 06h40,
+APRÈS les jours) · carte « Prestations Boond » sur /admin/reporting.
+Le jeton : `BOOND_FINANCE_USER_TOKEN` s'il est là, sinon le jeton standard (403).
+`buildJwt(userTokenOverride?)` — seul l'utilisateur change, clientToken/clientKey
+restent ceux de l'application.
+
+**CA exact (s6)** : chaque jour de CRA est valorisé au TJM VENDU de SA prestation ;
+la cascade a17 (honoraires de la mission, sinon TJM de la fiche) devient le REPLI
+pour les jours sans prestation connue. Le libellé du client reste celui de la
+mission quand elle existe (couleurs de marque et logos y sont adossés), sinon celui
+de Boond — ce qui fait enfin compter les jours des recrues sans mission au registre.
+Le rapport distingue `joursAuTjmPrestation` et `joursALaCascade`.
+⚠️ Les lignes de CRA d'avant s6 ne portent pas `deliveryBoondId` : **recharger tout
+l'historique des jours** (`POST /api/boond/sync-times` avec `{full:true}`) avant la
+première synchro des prestations.
+
 ### Import initial et comparaison au classeur
 
 `npx tsx scripts/import-excel.ts "<chemin du xlsx>" [--replace]` — importe les

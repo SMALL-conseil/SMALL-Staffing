@@ -15,6 +15,9 @@
 //    sinon TJM par défaut de la FICHE Boond du titulaire (defaultDailyRate,
 //    synchro quotidienne). Les missions sans AUCUN taux sont EXCLUES et
 //    comptées (« sans honoraires »).
+//  · PRIORITÉ ABSOLUE (s6) : quand le jour de CRA porte le TJM VENDU de sa
+//    PRESTATION Boond, c'est lui qui vaut — il vient du contrat, pas d'une
+//    saisie ni d'un rapprochement. La cascade ci-dessus devient le repli.
 // ============================================================
 
 export const JOURS_FACTURES_PAR_AN = 218
@@ -143,8 +146,12 @@ export interface ReportingJour {
   /** « YYYY-MM-DD ». */
   date: string
   duration: number
-  /** Client Boond de la ligne (nom de company) — sert au seul départage. */
+  /** Client Boond de la ligne (nom de company) — départage, et rattachement
+   *  des jours qu'aucune mission de l'app ne couvre (s6). */
   clientName: string | null
+  /** TJM VENDU de la prestation Boond du jour (s6) — quand il est là, c'est
+   *  LUI qui fait foi : plus besoin de deviner la mission ni son taux. */
+  dailyRate?: number | null
 }
 
 export interface CaReelParClient extends CaParClient {
@@ -153,8 +160,13 @@ export interface CaReelParClient extends CaParClient {
   caConvention: number
   /** Dernier mois valorisé au réel (1–12) — 0 si aucun (année future). */
   moisReelMax: number
-  /** Σ durées des jours de production sans mission de l'app couvrant la date. */
+  /** Σ durées des jours de production sans mission de l'app couvrant la date
+   *  ET sans prestation Boond connue — les seuls qui restent hors du CA. */
   joursSansMission: number
+  /** Σ durées valorisées au TJM de leur PRESTATION Boond (s6). */
+  joursAuTjmPrestation: number
+  /** Σ durées valorisées par la cascade (honoraires mission, TJM fiche). */
+  joursALaCascade: number
 }
 
 const normClient = (s: string | null): string =>
@@ -192,27 +204,49 @@ export function caParClientReel(
   let caReel = 0
   let caConvention = 0
   let joursSansMission = 0
+  let joursAuTjmPrestation = 0
+  let joursALaCascade = 0
 
-  // — Volet RÉEL : chaque jour de production × fees de sa mission —
+  // — Volet RÉEL : chaque jour de production à SON taux —
+  //   1. le TJM VENDU de la prestation Boond du jour (s6) : exact, il n'exige
+  //      ni mission au registre ni rapprochement par dates ;
+  //   2. à défaut, la cascade historique (honoraires de la mission couvrante,
+  //      sinon TJM de la fiche) — a12/a17.
+  //   Le libellé du client reste celui de la MISSION quand elle existe (les
+  //   couleurs de marque et les logos y sont adossés) ; sinon celui de Boond,
+  //   ce qui fait enfin compter les jours sans mission au registre.
   if (moisReelMax > 0) {
     const prefix = `${year}-`
     for (const j of jours) {
       if (!j.date.startsWith(prefix)) continue
       if (Number(j.date.slice(5, 7)) > moisReelMax) continue
+
       const couvrantes = missions.filter(
         (m) => m.personId === j.personId && m.start <= j.date && j.date <= m.end
       )
-      if (couvrantes.length === 0) { joursSansMission += j.duration; continue }
-      let mission = couvrantes[0]
+      let mission: ReportingMission | null = couvrantes[0] ?? null
       if (couvrantes.length > 1 && j.clientName) {
         const parClient = couvrantes.find((m) => normClient(m.client) === normClient(j.clientName))
         if (parClient) mission = parClient
       }
-      const taux = tauxJournalier(mission)
-      if (taux === null) { addSans(mission); continue }
+
+      const tjmPrestation = j.dailyRate ?? null
+      const taux = tjmPrestation ?? (mission ? tauxJournalier(mission) : null)
+      if (taux === null) {
+        // Aucun taux : si une mission couvre le jour, c'est elle qu'il faut
+        // compléter ; sinon le jour est simplement orphelin.
+        if (mission) addSans(mission)
+        else joursSansMission += j.duration
+        continue
+      }
+      if (tjmPrestation !== null) joursAuTjmPrestation += j.duration
+      else joursALaCascade += j.duration
+
+      const client = mission?.client ?? j.clientName
+      if (!client) { joursSansMission += j.duration; continue }
       const montant = j.duration * taux
       caReel += montant
-      add(mission.client, montant)
+      add(client, montant)
     }
   }
 
@@ -239,6 +273,8 @@ export function caParClientReel(
     caConvention,
     moisReelMax,
     joursSansMission: Math.round(joursSansMission * 100) / 100,
+    joursAuTjmPrestation: Math.round(joursAuTjmPrestation * 100) / 100,
+    joursALaCascade: Math.round(joursALaCascade * 100) / 100,
     sansHonoraires: [...sans.entries()]
       .map(([client, set]) => ({ client, missions: set.size }))
       .sort((a, b) => b.missions - a.missions),
