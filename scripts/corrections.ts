@@ -19,8 +19,9 @@ async function main() {
   // (rôle siège dès l'origine ; sa période consultant 01/2025 → 09/2025,
   // staffable jamais staffée, faussait le taux de staffing 2025. Sa fiche
   // SIÈGE reste. Suppression en cascade de ses absences/missions — aucune.)
-  const elvire = await prisma.person.findUnique({
-    where: { name_kind: { name: "Elvire HOUDEVILLE", kind: PersonKind.CONSULTANT } },
+  // s7 : l'unicité (name, kind) est devenue partielle — plus de findUnique.
+  const elvire = await prisma.person.findFirst({
+    where: { name: "Elvire HOUDEVILLE", kind: PersonKind.CONSULTANT },
     include: { _count: { select: { missions: true, absences: true, managees: true } } },
   })
   if (elvire) {

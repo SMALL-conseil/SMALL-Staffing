@@ -58,6 +58,14 @@ model Person {
   // Dernier état Boond relevé par la synchro (1 = à venir, 2 = IC, 3 = en
   // mission) — sert au croisement de contrôle avec le calcul missions.
   boondState    String?
+  /// s7 — MOBILITÉ INTER-AGENCES : fiche PRÉCÉDENTE de la même personne. La
+  /// fiche EN COURS (celle qui porte le boondId et l'email) pointe vers la
+  /// période close laissée dans l'agence d'origine. Sert à rattacher chaque
+  /// jour de CRA à la bonne période (lib/mobilite.ts) : sans elle, une pleine
+  /// charge de l'historique reverserait les jours parisiens dans Bordeaux.
+  previousId    String?       @unique
+  previous      Person?       @relation("PersonMobilite", fields: [previousId], references: [id], onDelete: SetNull)
+  next          Person?       @relation("PersonMobilite")
   /// Agence de rattachement (s5) : « PARIS » | « BORDEAUX ». Null = non
   /// renseignée — la personne est alors rattachée à PARIS par défaut
   /// (décision du 15/09 : continuité du classeur « Staffing SMALL Paris »)
@@ -76,7 +84,13 @@ model Person {
   missions      Mission[]
   timeEntries   TimeEntry[]
 
-  @@unique([name, kind])
+  /// ⚠️ s7 — l'unicité (name, kind) est devenue PARTIELLE et vit donc en SQL,
+  /// pas ici : « Person_name_kind_encours_key » UNIQUE (name, kind) WHERE
+  /// "departureDate" IS NULL (migration s7_mobilite). Une personne n'a qu'UNE
+  /// fiche en cours, mais peut porter plusieurs périodes closes (transferts).
+  /// Prisma ne sait pas décrire un index partiel : ne JAMAIS lancer
+  /// `prisma migrate dev` sur ce schéma sans le recréer ensuite — le projet
+  /// n'utilise que `migrate deploy` (migrations versionnées).
   @@index([agency])
   @@index([kind])
 }

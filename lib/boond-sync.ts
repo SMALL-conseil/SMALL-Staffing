@@ -79,6 +79,10 @@ export interface SyncReport {
   activesSansTaux: string[]
   kindConflicts: string[]
   departuresSet: { name: string; date: string }[]
+  /** s7 — fiches ACTIVES dans Boond que la base croit parties : signature
+   *  d'un transfert d'agence (le classeur Paris comptait un départ dès qu'on
+   *  quittait Paris). Signalées, jamais tranchées par la synchro. */
+  transfertsSuspectes: string[]
   absentsDuFlux: string[]
   nonRapproches: number
   errors: string[]
@@ -91,7 +95,7 @@ function emptyReport(received: number, pages: number, jeton: string): SyncReport
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
     ratesSet: 0, activesSansTaux: [], agencesSet: 0, sansAgence: [], sansAgenceBoond: 0,
-    kindConflicts: [], departuresSet: [],
+    kindConflicts: [], departuresSet: [], transfertsSuspectes: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
 }
@@ -115,9 +119,12 @@ async function emailTakenByOther(db: Db, email: string, selfId?: string): Promis
   return !!holder && holder.id !== selfId
 }
 
-/** Le couple (name, kind) est-il déjà porté par une AUTRE fiche ? */
+/** Le couple (name, kind) est-il déjà porté par une AUTRE fiche EN COURS ?
+ *  s7 — l'unicité est devenue partielle (une seule fiche ouverte par personne,
+ *  les périodes closes se répètent au fil des transferts) : le garde-fou ne
+ *  regarde donc que les fiches sans date de départ. */
 async function nameTakenByOther(db: Db, name: string, kind: string, selfId?: string): Promise<boolean> {
-  const holder = await db.person.findUnique({ where: { name_kind: { name, kind } } })
+  const holder = await db.person.findFirst({ where: { name, kind, departureDate: null } })
   return !!holder && holder.id !== selfId
 }
 
@@ -338,6 +345,19 @@ export async function runBoondSync(
         data.departureDate = day(p.departure)
       }
       // NB : un départ existant n'est JAMAIS effacé si Boond n'en fournit pas.
+      // s7 — mais la contradiction est SIGNALÉE : une fiche active dans Boond
+      // que la base croit partie est presque toujours un TRANSFERT D'AGENCE
+      // (le classeur « Staffing SMALL Paris » enregistrait un départ dès qu'on
+      // quittait Paris). La synchro ne tranche pas toute seule — réécrire une
+      // histoire sur une déduction serait pire que le symptôme : le siège
+      // arbitre, avec `npx tsx scripts/transfert.ts`.
+      if (!p.departure && person.departureDate) {
+        report.transfertsSuspectes.push(
+          `${p.name} : partie le ${person.departureDate.toISOString().slice(0, 10)} en base, ` +
+            `ACTIVE dans Boond (état ${p.state ?? "?"}` +
+            `${p.agencyRaw ? `, agence « ${p.agencyRaw} »` : ""}) — transfert d'agence ?`
+        )
+      }
 
       await db.person.update({ where: { id: person.id }, data: data as never })
       report.updated++

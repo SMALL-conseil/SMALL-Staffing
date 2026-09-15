@@ -22,6 +22,10 @@ export default async function AdminPersonnesPage() {
     include: {
       absences: { orderBy: { startDate: "asc" } },
       manager: { select: { name: true } },
+      // s7 — mobilité : la période close pointe vers la suivante (`next`), la
+      // période en cours vers celle d'origine (`previous`).
+      previous: { select: { agency: true, arrivalDate: true } },
+      next: { select: { agency: true, arrivalDate: true } },
       _count: { select: { missions: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -102,6 +106,21 @@ export default async function AdminPersonnesPage() {
   )
 
   const dateCell = (d: Date | null) => (d ? formatDateShort(toIsoDate(d)) : "—")
+
+  /** s7 — une période close par un TRANSFERT ne doit pas se lire « partie » :
+   *  la personne est toujours chez SMALL, dans l'autre agence. */
+  const libelleAgence = (a: string | null) => (a === "BORDEAUX" ? "Bordeaux" : a === "PARIS" ? "Paris" : "—")
+  const mobilite = (p: {
+    previous?: { agency: string | null; arrivalDate: Date } | null
+    next?: { agency: string | null; arrivalDate: Date } | null
+  }) =>
+    p.next ? (
+      <span className="block text-[10.5px] text-label">
+        transférée à {libelleAgence(p.next.agency)}
+      </span>
+    ) : p.previous ? (
+      <span className="block text-[10.5px] text-label">venue de {libelleAgence(p.previous.agency)}</span>
+    ) : null
 
   return (
     <div className="px-11 py-9 max-w-[1150px] mx-auto max-md:px-5">
@@ -210,7 +229,10 @@ export default async function AdminPersonnesPage() {
                 <AgenceCell personId={p.id} agency={p.agency} />
               </div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
-              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">
+                {dateCell(p.departureDate)}
+                {mobilite(p)}
+              </div>
               <div className="col-span-2 text-texte-2 truncate">{p.manager?.name ?? "—"}</div>
             </div>
           ))}
@@ -240,7 +262,10 @@ export default async function AdminPersonnesPage() {
                 <AgenceCell personId={p.id} agency={p.agency} />
               </div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
-              <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
+              <div className="col-span-2 text-texte-2 text-[12px]">
+                {dateCell(p.departureDate)}
+                {mobilite(p)}
+              </div>
             </div>
           ))}
         </div>

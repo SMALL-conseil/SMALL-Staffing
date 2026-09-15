@@ -13,6 +13,7 @@
 //  Les jours sont des données RÉPLIQUÉES (pas un registre) : les remplacer
 //  est légitime, contrairement aux personnes (jamais supprimées).
 // ============================================================
+import { ficheAuJour, type FicheChainon } from "./mobilite"
 import { prisma } from "./prisma"
 import type { Prisma, PrismaClient } from "@prisma/client"
 import { extractTimeRows, fetchTimesPage, type BoondTimeRow } from "./boond-times"
@@ -75,11 +76,23 @@ export async function runTimesSync(
 
   try {
     // Résolution ressource Boond → Person (boondId posés par la synchro personnes).
+    // s7 — la chaîne de mobilité entre : le flux ne connaît que l'identifiant de
+    // la fiche EN COURS, mais un jour antérieur à un transfert appartient à la
+    // période précédente (sinon les jours parisiens tomberaient dans Bordeaux).
+    // On charge donc TOUTES les fiches, pas seulement celles à boondId.
     const persons = await db.person.findMany({
-      where: { boondId: { not: null } },
-      select: { id: true, boondId: true },
+      select: { id: true, boondId: true, previousId: true, arrivalDate: true, departureDate: true },
     })
-    const byBoondId = new Map(persons.map((p) => [p.boondId as string, p.id]))
+    const chainons: FicheChainon[] = persons.map((p) => ({
+      id: p.id,
+      boondId: p.boondId,
+      previousId: p.previousId,
+      arrival: p.arrivalDate.toISOString().slice(0, 10),
+      departure: p.departureDate ? p.departureDate.toISOString().slice(0, 10) : null,
+    }))
+    const byBoondId = new Map(
+      persons.filter((p) => p.boondId).map((p) => [p.boondId as string, p.id])
+    )
     if (byBoondId.size === 0) {
       report.errors.push(
         "Aucune personne rapprochée de Boond en base — lancer d'abord la synchro des personnes."
@@ -92,7 +105,7 @@ export async function runTimesSync(
     for (const r of rows) {
       if (!r.date || !r.resourceBoondId || r.duration <= 0) { report.skippedUnusable++; continue }
       if (opts.cutoffIso && r.date < opts.cutoffIso) continue // hors fenêtre (queue de page)
-      const personId = byBoondId.get(r.resourceBoondId)
+      const personId = ficheAuJour(chainons, r.resourceBoondId, r.date)
       if (!personId) {
         report.skippedNoPerson++
         unknown.set(r.resourceBoondId, (unknown.get(r.resourceBoondId) ?? 0) + 1)

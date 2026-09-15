@@ -303,6 +303,52 @@ diplôme ou une expérience passée (`attributes.diplomas`,
 `references[].description`). **Ne JAMAIS déduire un rattachement d'un texte de
 CV** : seule la relation `agency` fait foi.
 
+### Mobilité inter-agences (s7, 15/09)
+
+Une personne transférée porte **DEUX fiches datées** : la période d'origine,
+close à la veille du transfert, et la période courante, ouverte le jour même.
+Décision du 15/09 : chaque agence garde ses chiffres justes, **passé compris**,
+et « Tout SMALL » reste continu (périodes JOINTIVES : ni trou ni recouvrement).
+Vérifié en bac à sable : Paris + Bordeaux = Tout, et la personne transférée
+compte une fois dans chaque périmètre (deux fenêtres disjointes ⇒ un seul ETP).
+
+**Pourquoi deux fiches plutôt qu'une appartenance datée** : le moteur sait déjà
+découper une présence par fenêtre arrivée/départ. Le transfert se dit donc dans
+son vocabulaire, et `lib/staffing.ts` n'est pas touché d'une ligne — golden
+tests inchangés.
+
+- `Person.previousId` (migration `s7_mobilite`) relie la fiche EN COURS à la
+  précédente. La fiche en cours porte SEULE le `boondId` et l'email : c'est elle
+  qui répond aux synchros et au rapprochement des comptes (donc au périmètre).
+- L'unicité `(name, kind)` est devenue **PARTIELLE** et vit en SQL, pas dans le
+  schéma Prisma : `UNIQUE (name, kind) WHERE "departureDate" IS NULL`. Une seule
+  fiche ouverte par personne ; les périodes closes se répètent. ⚠️ Prisma ne sait
+  pas décrire un index partiel — ne jamais lancer `prisma migrate dev` sans le
+  recréer (le projet n'utilise que `migrate deploy`).
+- `lib/mobilite.ts` (pur, testé) : `ficheAuJour()` rattache chaque jour de CRA à
+  la BONNE période en remontant la chaîne — sans quoi une pleine charge de
+  l'historique reverserait les jours parisiens dans Bordeaux, puisque le flux ne
+  connaît que le boondId de la fiche en cours. Aucun jour n'est jamais perdu :
+  faute de période correspondante, on retombe sur la fiche porteuse.
+  `planifieTransfert()` refuse ce qui n'est pas un transfert (même agence,
+  transfert antérieur à l'arrivée, départ postérieur au transfert).
+- **La synchro ne tranche JAMAIS toute seule** : une fiche active dans Boond que
+  la base croit partie est seulement signalée (`transfertsSuspectes`, visible sur
+  la carte de synchro). Réécrire une histoire sur une déduction serait pire que
+  le symptôme.
+- Le geste : `npx tsx scripts/transfert.ts` (sans argument = liste les candidats,
+  avec la date proposée), puis `… "Nom" --vers BORDEAUX [--le AAAA-MM-JJ]
+  [--appliquer]`. Répétition par défaut. Missions, absences et jours sont
+  répartis par DATE ; une mission **à cheval** n'est jamais coupée d'office :
+  elle reste sur la période d'origine et elle est signalée.
+
+**Origine du problème (15/09)** : le classeur « Staffing SMALL **Paris** »
+enregistrait un départ dès qu'on quittait Paris. Charlotte Guay et Anaïs Vanel
+sont donc arrivées dans l'app avec une date de départ, alors que Boond les donne
+ACTIVES en agence « SMALL BORDEAUX », sans aucune date de fin. Bonne nouvelle :
+cette date de départ EST la date du transfert — le script la reprend (lendemain)
+et rien n'est à retrouver à la main.
+
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
 `/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la

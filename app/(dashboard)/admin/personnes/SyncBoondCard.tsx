@@ -138,6 +138,10 @@ export default function SyncBoondCard({ lastRun, boondConfigured }: Props) {
                   affectés) — rattachées à Paris par défaut ; l&rsquo;agence se saisit dans le registre.
                 </p>
               )}
+              {liste(
+                "Active dans Boond mais partie en base — transfert d'agence ? (scripts/transfert.ts)",
+                report.transfertsSuspectes ?? []
+              )}
               {liste("Départs posés", (report.departuresSet ?? []).map((d) => `${d.name} → ${d.date}`))}
               {liste("Inactifs Boond — ignorés", (report.skippedInactive ?? []).map((s) => `${s.name} (état ${s.state ?? "?"})`))}
               {liste("Présents en base, absents du flux (à vérifier)", report.absentsDuFlux ?? [])}
