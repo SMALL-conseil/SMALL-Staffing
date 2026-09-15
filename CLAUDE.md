@@ -251,9 +251,21 @@ pages — le tri desc ne sert qu'à l'arrêt anticipé de la fenêtre incrément
 ⚠️ SVG côté client : arrondir toute coordonnée calculée (Math.sin/cos) avant
 de la mettre en attribut — floats bruts = erreur d'hydratation (DonutChart, a13).
 
-### Import initial
+### Import initial et comparaison au classeur
 
 `npx tsx scripts/import-excel.ts "<chemin du xlsx>" [--replace]` — importe les
 3 registres + absences, relie les managers, puis affiche les KPIs recalculés
 depuis la base (à comparer à l'Excel). `lib/staffing-load.ts` = passerelle
-base → moteur (réutilisée par les pages).
+base → moteur (réutilisée par les pages). Le PARSING du classeur vit dans
+`lib/excel-registres.ts` (partagé et testé) — jamais deux lecteurs divergents.
+
+**Écart de taux app ↔ Excel (a21)** : le moteur étant certifié, un écart vient
+TOUJOURS des données — les deux registres divergent dès l'import (le classeur
+continue d'être saisi à la main, la base reçoit la synchro Boond et les saisies
+de l'app). `npx tsx scripts/compare-excel.ts "<xlsx>" [AAAA-MM]` rejoue le même
+moteur des deux côtés, chiffre l'écart (taux, staffable, staffés), l'attribue
+consultant par consultant (« si aligné » = taux de l'app si CE consultant était
+remis à l'identique — un taux est un rapport, les effets ne s'additionnent pas)
+et liste les différences de registre : c'est la liste des corrections à faire.
+**Recoller = corriger le registre de l'app, jamais ré-importer** (`--replace`
+efface honoraires, boondId et TJM fiche ; l'app est la source vivante).

@@ -10,11 +10,13 @@
 // KPIs de l'année en cours recalculés depuis la base et affichés.
 // ============================================================
 import "dotenv/config"
-import { readFileSync } from "node:fs"
-import * as XLSX from "xlsx"
 import { PrismaClient } from "@prisma/client"
-import { CONSULTANT_GRADES, PersonKind, SIEGE_GRADES } from "../lib/types"
+import { PersonKind } from "../lib/types"
 import { monthlyKpis, ytdRates } from "../lib/staffing"
+// Le parsing du classeur vit dans lib/excel-registres.ts — PARTAGÉ avec
+// scripts/compare-excel.ts (a21), pour que l'import et la comparaison lisent
+// rigoureusement le même classeur de la même façon.
+import { CONSULTANTS_EXCLUS, normNom, readRegistres } from "../lib/excel-registres"
 
 const prisma = new PrismaClient()
 
@@ -23,117 +25,8 @@ const prisma = new PrismaClient()
 // staffable jamais staffée) alors qu'elle a toujours tenu un rôle siège — sa
 // période consultant faussait le taux de staffing 2025. Elle n'est importée
 // QUE comme siège. (Décision du 11/08/2026 ; scripts/corrections.ts applique
-// la même correction sur une base déjà importée.)
-const CONSULTANTS_EXCLUS = ["Elvire HOUDEVILLE"]
-
-// ---------- Lecture Excel ----------
-
-/** Sérial Excel (base 30/12/1899) → Date UTC minuit, null si vide/0. */
-function serialToDate(v: unknown): Date | null {
-  if (v == null || v === "" || v === 0) return null
-  if (v instanceof Date) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate()))
-  if (typeof v !== "number") throw new Error(`date attendue, reçu : ${JSON.stringify(v)}`)
-  return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86_400_000)
-}
-
-function asName(v: unknown): string | null {
-  if (typeof v !== "string") return null
-  const s = v.trim()
-  return s.length ? s : null
-}
-
-interface ConsultantRow {
-  name: string
-  email: string | null
-  grade: string
-  arrival: Date
-  departure: Date | null
-  absenceStart: Date | null
-  absenceEnd: Date | null
-  manager: string | null
-}
-interface SiegeRow {
-  name: string
-  grade: string
-  arrival: Date
-  departure: Date | null
-}
-interface MissionRow {
-  consultant: string
-  client: string
-  start: Date
-  end: Date
-  share: number
-  rank: number
-}
-
-function readWorkbook(path: string) {
-  const wb = XLSX.read(readFileSync(path), { type: "buffer", cellDates: false })
-  const sheet = (name: string) => {
-    const ws = wb.Sheets[name]
-    if (!ws) throw new Error(`onglet « ${name} » introuvable dans ${path}`)
-    // header:1 = lignes brutes ; raw:true = sérials numériques pour les dates
-    return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true })
-  }
-
-  const consultants: ConsultantRow[] = []
-  for (const row of sheet("Consultant").slice(1)) {
-    const name = asName(row[0])
-    if (!name) continue
-    if (CONSULTANTS_EXCLUS.includes(name)) {
-      console.log(`  ⚠ ${name} : exclu du registre consultants (correction assumée — cf. CLAUDE.md)`)
-      continue
-    }
-    const grade = asName(row[2])
-    if (!grade || !(CONSULTANT_GRADES as readonly string[]).includes(grade))
-      throw new Error(`grade consultant inconnu pour ${name} : « ${grade} »`)
-    const arrival = serialToDate(row[3])
-    if (!arrival) throw new Error(`date d'arrivée manquante pour ${name}`)
-    consultants.push({
-      name,
-      email: asName(row[1]),
-      grade,
-      arrival,
-      departure: serialToDate(row[4]),
-      absenceStart: serialToDate(row[5]),
-      absenceEnd: serialToDate(row[6]),
-      manager: asName(row[7]),
-    })
-  }
-
-  const siege: SiegeRow[] = []
-  for (const row of sheet("Siège").slice(1)) {
-    const name = asName(row[0])
-    if (!name) continue
-    const grade = asName(row[1])
-    if (!grade) throw new Error(`grade siège manquant pour ${name}`)
-    if (!(SIEGE_GRADES as readonly string[]).includes(grade))
-      // fidèle à l'Excel : un grade siège hors liste (ex. « DG SMALL Bordeaux »)
-      // est importé mais n'apparaît dans aucune ligne du suivi des effectifs
-      console.warn(`  ⚠ grade siège hors suivi des effectifs pour ${name} : « ${grade} » (importé tel quel)`)
-    const arrival = serialToDate(row[2])
-    if (!arrival) throw new Error(`date d'arrivée manquante pour ${name}`)
-    siege.push({ name, grade, arrival, departure: serialToDate(row[3]) })
-  }
-
-  const missions: MissionRow[] = []
-  for (const row of sheet("Mission_Consultant").slice(1)) {
-    const consultant = asName(row[0])
-    if (!consultant) continue
-    const client = asName(row[2])
-    const start = serialToDate(row[3])
-    const end = serialToDate(row[4])
-    const share = typeof row[5] === "number" ? row[5] : NaN
-    if (!client || !start || !end) throw new Error(`mission incomplète pour ${consultant}`)
-    if (Number.isNaN(share) || share <= 0 || share > 1)
-      throw new Error(`part d'intervention invalide pour ${consultant} (${row[5]})`)
-    if (start.getTime() > end.getTime())
-      throw new Error(`mission de ${consultant} chez ${client} : début après fin`)
-    missions.push({ consultant, client, start, end, share, rank: missions.length })
-  }
-
-  return { consultants, siege, missions }
-}
+// la même correction sur une base déjà importée. La liste vit désormais dans
+// lib/excel-registres.ts, partagée avec le comparateur.)
 
 // ---------- Import ----------
 
@@ -146,7 +39,18 @@ async function main() {
     process.exit(1)
   }
 
-  const { consultants, siege, missions } = readWorkbook(path)
+  const reg = readRegistres(path)
+  const exclus = new Set(CONSULTANTS_EXCLUS.map(normNom))
+  const consultants = reg.consultants.filter((c) => {
+    if (!exclus.has(normNom(c.name))) return true
+    console.log(`  ⚠ ${c.name} : exclu du registre consultants (correction assumée — cf. CLAUDE.md)`)
+    return false
+  })
+  const { siege } = reg
+  // Les missions des exclus partent avec eux ; les ORPHELINES (consultant
+  // absent du registre) restent signalées plus bas — elles révèlent un
+  // classeur incohérent, on ne les avale pas en silence.
+  const missions = reg.missions.filter((m) => !exclus.has(normNom(m.consultant)))
   console.log(
     `Classeur lu : ${consultants.length} consultants, ${siege.length} siège, ` +
       `${missions.length} missions, ${consultants.filter((c) => c.absenceStart).length} absences prolongées`
