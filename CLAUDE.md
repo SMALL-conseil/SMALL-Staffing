@@ -238,6 +238,30 @@ main toute seule (et une entrée `"Libellé=BORDEAUX"` force un libellé que le
 mot-clé ne trouve pas). Ne JAMAIS mapper « SMALL » vers PARIS : la synchro
 réécrirait alors les agences Bordeaux saisies à la main.
 
+**a26 (15/09) — contre-enquête, parce que le relevé a24/a25 tournait avec le
+JETON STANDARD.** `scripts/boond-inspect-agences.ts` a été réécrit : il rejoue
+tout **avec les deux jetons** (standard et financier, empreintes sha256 courtes
+affichées, jamais les valeurs), ne se contente plus des relations devinées mais
+**ratisse chaque charge utile** à la recherche de « Bordeaux / BDX / Gironde /
+Paris » (chemin JSON + valeur + personnes concernées), descend dans les
+endpoints DÉTAIL `/resources/{id}` et `/resources/{id}/information` (celui où
+Formation a fini par trouver `seniorityDate`), interroge les référentiels
+(`/agencies`, `/poles`, `/application/dictionary`…) et lance une **recherche
+plein texte serveur** `?keywords=bordeaux` sur resources/companies/projects/
+opportunities. `--full` sonde les 65 fiches (~130 appels) au lieu de 10.
+Deux totaux de ressources différents entre les deux jetons = **périmètre de
+visibilité restreint** du compte standard : ce serait alors l'explication du
+« 65/65 SMALL ». ⚠️ **Vérifié dans le code de Formation le 15/09** : elle ne
+tire PAS Bordeaux de Boond non plus — `mapPoleToSite` lit `pole`, son sync
+renvoie `sitesLinked: 0`, et le site est posé **à la main** par le sélecteur
+`SiteSelect.tsx` de `/admin/utilisateurs` (son .env local n'a même aucun jeton
+Boond). « Retrouver les comptes bordelais dans Formation » = quelqu'un les a
+saisis. La liste existe donc déjà côté Formation : la recopier ici est le
+chemin court. `scripts/agences.ts` pose l'agence EN LOT (répétition par
+défaut, `--appliquer` pour écrire ; rapprochement par email puis par nom
+normalisé, entrée non rapprochée = signalée et rien d'écrit ; `--etat` pour la
+photo courante).
+
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
 `/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la
