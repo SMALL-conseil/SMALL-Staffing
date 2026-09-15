@@ -150,6 +150,28 @@ async function main() {
     )
   }
 
+  // ------------------------------------------------- 2bis. Par agence
+  titre(`Par agence (volet RÉEL) — pour comparer à la vision parisienne d'avant`)
+  const parAgence = new Map<string, { jours: number; ca: number }>()
+  for (const j of joursDb) {
+    const d = toIsoDate(j.date)
+    if (Number(d.slice(5, 7)) > aujourdhui.moisReelMax || !d.startsWith(`${year}-`)) continue
+    const tjmJour =
+      (j.deliveryBoondId ? tjm.get(j.deliveryBoondId) : null) ??
+      (() => {
+        const m = missions.find((x) => x.personId === j.personId && x.start <= d && d <= x.end)
+        return m ? (m.fees ?? m.defaultRate ?? null) : null
+      })()
+    const cle = j.person.agency ?? "(vide → Paris)"
+    const cur = parAgence.get(cle) ?? { jours: 0, ca: 0 }
+    cur.jours += j.duration
+    cur.ca += tjmJour ? j.duration * tjmJour : 0
+    parAgence.set(cle, cur)
+  }
+  for (const [a, v] of [...parAgence.entries()].sort((x, y) => y[1].ca - x[1].ca)) {
+    console.log(`  ${a.padEnd(18)} ${jr(v.jours).padStart(9)} j   ${eur(v.ca).padStart(13)}`)
+  }
+
   // ----------------------------------------------------------- 3. Par client
   titre(`Par client — et ce qui ressemble à du refacturé interne`)
   let interne = 0
@@ -162,6 +184,22 @@ async function main() {
     console.log(
       `\n  ⚠ ${eur(interne)} portés par des libellés qui sentent la facturation interne.` +
         `\n    À exclure du CA client si c'en est : me le dire, la règle se pose en une ligne.`
+    )
+  }
+
+  // ------------------------------------------- 3bis. Libellés à rapprocher
+  const parNorm = new Map<string, string[]>()
+  const normC = (x: string) =>
+    x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "")
+  for (const e of aujourdhui.entries) {
+    const k = normC(e.client)
+    parNorm.set(k, [...(parNorm.get(k) ?? []), e.client])
+  }
+  const doublons = [...parNorm.values()].filter((v) => v.length > 1)
+  if (doublons.length) {
+    console.log(
+      `\n  Libellés à rapprocher (le donut les compte séparément) : ` +
+        doublons.map((v) => v.join(" / ")).join(" · ")
     )
   }
 
@@ -188,8 +226,43 @@ async function main() {
       `  TJM des prestations utilisés : min ${tri[0]} € · médiane ${tri[Math.floor(tri.length / 2)]} €` +
         ` · max ${tri[tri.length - 1]} €`
     )
+    // Détail des TJM aberrants : quelle prestation, quel client, combien de
+    // jours, combien d'euros. Un forfait pris pour un taux journalier se voit
+    // ici, et nulle part ailleurs.
     const hauts = [...new Set(tri.filter((t) => t > 2000))]
-    if (hauts.length) console.log(`  ⚠ TJM > 2000 € : ${hauts.join(", ")} — forfait pris pour un taux ?`)
+    if (hauts.length) {
+      console.log(`  ⚠ TJM > 2000 € : ${hauts.join(", ")} — forfait pris pour un taux ?`)
+      const parPresta = new Map<string, { tjm: number; jours: number; client: string; qui: Set<string> }>()
+      for (const j of joursDb) {
+        const d = toIsoDate(j.date)
+        if (!d.startsWith(`${year}-`) || Number(d.slice(5, 7)) > aujourdhui.moisReelMax) continue
+        const t = j.deliveryBoondId ? tjm.get(j.deliveryBoondId) : null
+        if (!t || t <= 2000) continue
+        const cle = String(j.deliveryBoondId)
+        const cur = parPresta.get(cle) ?? {
+          tjm: t,
+          jours: 0,
+          client: prestations.find((x) => x.boondId === cle)?.clientName ?? j.clientName ?? "?",
+          qui: new Set<string>(),
+        }
+        cur.jours += j.duration
+        cur.qui.add(j.person.name)
+        parPresta.set(cle, cur)
+      }
+      for (const [id, v] of parPresta) {
+        console.log(
+          `      prestation ${id.padEnd(6)} ${String(v.tjm).padStart(6)} €/j × ${jr(v.jours)} j` +
+            ` = ${eur(v.tjm * v.jours)}   ${v.client}   (${[...v.qui].join(", ")})`
+        )
+      }
+      const gonfle = [...parPresta.values()].reduce((n, v) => n + v.tjm * v.jours, 0)
+      const median = tri[Math.floor(tri.length / 2)]
+      const raisonnable = [...parPresta.values()].reduce((n, v) => n + median * v.jours, 0)
+      console.log(
+        `      → ces prestations pèsent ${eur(gonfle)} ; au TJM médian elles vaudraient ${eur(raisonnable)}` +
+          `\n        soit ${eur(gonfle - raisonnable)} d'écart à elles seules.`
+      )
+    }
   }
 
   let horsPresence = 0
