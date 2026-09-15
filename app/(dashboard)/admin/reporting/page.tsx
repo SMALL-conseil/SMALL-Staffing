@@ -17,6 +17,8 @@ import {
   type ReportingMission,
 } from "@/lib/reporting"
 import { AUTRES_COLOR, clientColor, clientSlug } from "@/lib/client-brand"
+import { contextePerimetre } from "@/lib/perimetre-session"
+import { dansLePerimetre, libellePerimetre } from "@/lib/perimetre"
 import DonutChart from "@/components/DonutChart"
 import SyncTimesCard from "./SyncTimesCard"
 
@@ -39,13 +41,17 @@ export default async function ReportingPage({
   // Missions triées par rank : le départage jour → mission en dépend (a12).
   // TJM fiche du titulaire (a17) : cascade fees ?? defaultDailyRate — cette
   // page est gate Siège, seule à recevoir ces valeurs (avec /admin/missions).
-  const missionsDb = await prisma.mission.findMany({
-    select: {
-      personId: true, client: true, startDate: true, endDate: true, fees: true,
-      person: { select: { defaultDailyRate: true } },
-    },
-    orderBy: { rank: "asc" },
-  })
+  // Périmètre observé (s5) : les donuts suivent l'agence des TITULAIRES.
+  const { perimetre } = await contextePerimetre()
+  const missionsDb = (
+    await prisma.mission.findMany({
+      select: {
+        personId: true, client: true, startDate: true, endDate: true, fees: true,
+        person: { select: { defaultDailyRate: true, agency: true } },
+      },
+      orderBy: { rank: "asc" },
+    })
+  ).filter((m) => dansLePerimetre(m.person.agency, perimetre))
   const missions: ReportingMission[] = missionsDb.map((m) => ({
     personId: m.personId,
     client: m.client,
@@ -56,13 +62,18 @@ export default async function ReportingPage({
   }))
 
   // Jours de CRA « production » de l'année affichée (synchro Boond a12).
-  const joursDb = await prisma.timeEntry.findMany({
-    where: {
-      activityType: "production",
-      date: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
-    },
-    select: { personId: true, date: true, duration: true, clientName: true },
-  })
+  const joursDb = (
+    await prisma.timeEntry.findMany({
+      where: {
+        activityType: "production",
+        date: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) },
+      },
+      select: {
+        personId: true, date: true, duration: true, clientName: true,
+        person: { select: { agency: true } },
+      },
+    })
+  ).filter((j) => dansLePerimetre(j.person.agency, perimetre))
   const jours: ReportingJour[] = joursDb.map((j) => ({
     personId: j.personId,
     date: toIsoDate(j.date),
@@ -118,7 +129,8 @@ export default async function ReportingPage({
             Reporting par <span className="hl">client</span>
           </h1>
           <p className="text-[13px] text-texte-2 mt-2">
-            Répartition de l&rsquo;activité — visible du seul rôle Siège.
+            Répartition de l&rsquo;activité — visible du seul rôle Siège · périmètre{" "}
+            <span className="font-bold text-anthracite">{libellePerimetre(perimetre)}</span>.
           </p>
         </div>
         <div className="flex items-center gap-2">

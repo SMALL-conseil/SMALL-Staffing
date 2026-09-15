@@ -17,8 +17,38 @@ export const roleLabels: Record<string, string> = {
 }
 
 // ------------------------------------------------------------
-// Métier staffing — pseudo-enums (colonnes String côté Prisma).
+// Agences et périmètres d'observation (s5).
+// Une PERSONNE appartient à une AGENCE (Person.agency, venue de Boond ou
+// saisie au registre) ; l'app s'observe par PÉRIMÈTRE — une agence, ou le
+// cabinet entier. Logique et droits : lib/perimetre.ts (pur, testé).
 // ------------------------------------------------------------
+
+export const Agency = {
+  PARIS: "PARIS",
+  BORDEAUX: "BORDEAUX",
+} as const
+export type Agency = (typeof Agency)[keyof typeof Agency]
+
+export const agencyLabels: Record<string, string> = {
+  PARIS: "Paris",
+  BORDEAUX: "Bordeaux",
+}
+
+export const Perimetre = {
+  PARIS: "PARIS",
+  BORDEAUX: "BORDEAUX",
+  /** Cabinet entier — réservé au rôle Siège. */
+  TOUT: "TOUT",
+} as const
+export type Perimetre = (typeof Perimetre)[keyof typeof Perimetre]
+
+export const perimetreLabels: Record<string, string> = {
+  PARIS: "Paris",
+  BORDEAUX: "Bordeaux",
+  TOUT: "Tout SMALL",
+}
+
+export const PERIMETRE_COOKIE = "small-perimetre"
 
 export const PersonKind = {
   CONSULTANT: "CONSULTANT",

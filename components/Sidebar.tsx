@@ -15,6 +15,7 @@ import {
   KeyRound,
 } from "lucide-react"
 import { roleLabels } from "@/lib/types"
+import PerimetreSwitch from "./PerimetreSwitch"
 
 type NavItem = {
   label: string
@@ -40,9 +41,12 @@ const NAV_ADMIN: NavItem[] = [
 
 interface SidebarProps {
   user: { name?: string | null; email?: string | null; role: string }
+  /** Périmètre observé et périmètres autorisés (s5) — résolus côté serveur. */
+  perimetre: string
+  perimetresAutorises: string[]
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, perimetre, perimetresAutorises }: SidebarProps) {
   const pathname = usePathname()
   const groups: { kicker: string; items: NavItem[] }[] = [
     { kicker: "Menu", items: NAV_MENU },
@@ -58,6 +62,8 @@ export default function Sidebar({ user }: SidebarProps) {
           Staffing
         </div>
       </div>
+
+      <PerimetreSwitch perimetre={perimetre} autorises={perimetresAutorises} />
 
       {/* Nav */}
       <nav className="flex-1 px-3.5 py-2" aria-label="Navigation principale">

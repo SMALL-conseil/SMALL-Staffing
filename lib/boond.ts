@@ -18,6 +18,10 @@ const BASE = process.env.BOOND_BASE_URL || "https://ui.boondmanager.com/api"
 const JWT_HEADER = process.env.BOOND_JWT_HEADER || "X-Jwt-Client-BoondManager"
 // Relation Boond du « Responsable manager » (même valeur que Formation).
 const MANAGER_REL = process.env.BOOND_MANAGER_REL || "mainManager"
+// Relation portant l'AGENCE (Paris / Bordeaux) — s5. Le tenant expose
+// « agency » ET « pole » sur 65/65 ressources : laquelle porte la ville se
+// relève avec scripts/boond-inspect-agences.ts, et se fige ici.
+const AGENCY_REL = process.env.BOOND_AGENCY_REL || "agency"
 // Champ portant le « Titre » ; vide = chaîne de candidats (à figer via inspect).
 const TITLE_FIELD = process.env.BOOND_TITLE_FIELD || ""
 // Champs portant les dates d'arrivée / de départ ; vides = chaînes de candidats.
@@ -61,30 +65,47 @@ export function buildJwt(): string {
 
 export type BoondResource = {
   id: string
+  type?: string
   attributes?: Record<string, unknown>
   relationships?: Record<string, { data?: { id?: string | number } }>
 }
 
-export async function fetchResources(): Promise<{ resources: BoondResource[]; pages: number }> {
+/** Index « type#id » → ressource, construit depuis la section `included`. */
+export function indexIncluded(included: BoondResource[]): Map<string, BoondResource> {
+  const m = new Map<string, BoondResource>()
+  for (const i of included) m.set(`${String(i.type)}#${String(i.id)}`, i)
+  return m
+}
+
+export async function fetchResources(): Promise<{
+  resources: BoondResource[]
+  included: BoondResource[]
+  pages: number
+}> {
   const headers = { [JWT_HEADER]: buildJwt(), Accept: "application/json" }
   const out: BoondResource[] = []
+  const inc: BoondResource[] = []
   let page = 1
   while (page <= 100) {
     // include=<relation manager> : sans lui, le listing expose la CLÉ de la
     // relation mais pas son contenu (data) — relevé du 13/08 : mainManager
     // présent sur 65/65 ressources mais 0 lien posé. Paramètre ignoré sans
     // dommage si l'API ne le supporte pas.
-    const url = `${BASE}/resources?page=${page}&maxResults=100&maxPerPage=100&include=${encodeURIComponent(MANAGER_REL)}`
+    const url =
+      `${BASE}/resources?page=${page}&maxResults=100&maxPerPage=100` +
+      `&include=${encodeURIComponent(`${MANAGER_REL},${AGENCY_REL}`)}`
     const res = await fetch(url, { headers, cache: "no-store" })
     if (!res.ok) throw new Error(`Boond /resources HTTP ${res.status}`)
     const payload = await res.json()
     const data: BoondResource[] = payload.data ?? []
     out.push(...data)
+    // `included` porte le CONTENU des relations (nom de l'agence, du manager…)
+    inc.push(...((payload.included ?? []) as BoondResource[]))
     const total = payload?.meta?.totals?.rows
     if (!data.length || (typeof total === "number" && out.length >= total)) break
     page++
   }
-  return { resources: out, pages: page }
+  return { resources: out, included: inc, pages: page }
 }
 
 // ------------------------------------------------------------
@@ -213,6 +234,21 @@ export function isIndepType(a: Record<string, unknown>): boolean {
   return INDEP_TYPEOF.length > 0 && INDEP_TYPEOF.includes(String(a.typeOf))
 }
 
+/**
+ * Nom d'agence Boond → agence de l'app (s5). Reconnaissance par MOT-CLÉ, pas
+ * par égalité : le tenant peut libeller « SMALL Bordeaux », « Agence de
+ * Bordeaux », « SMALL-CONSEIL Paris »… Tout ce qui n'est ni l'un ni l'autre
+ * rend null : la personne sera rattachée à Paris par défaut ET signalée, on
+ * ne devine pas une ville.
+ */
+export function normalizeAgency(nom: string | null | undefined): string | null {
+  const n = normText(nom)
+  if (!n) return null
+  if (n.includes("bordeaux")) return "BORDEAUX"
+  if (n.includes("paris")) return "PARIS"
+  return null
+}
+
 /** Personne normalisée extraite d'une ressource Boond. */
 export interface BoondPerson {
   boondId: string
@@ -226,17 +262,36 @@ export interface BoondPerson {
   departure: string | null
   /** TJM de vente par défaut de la fiche (€/jour) — null = non renseigné. */
   dailyRate: number | null
+  /** Agence normalisée (« PARIS » | « BORDEAUX ») — null si non reconnue. */
+  agency: string | null
+  /** Libellé BRUT de l'agence Boond — sert au signalement quand non reconnue. */
+  agencyRaw: string | null
   managerBoondId: string | null
   excluded: boolean
   activeState: boolean
 }
 
-export function extractPerson(r: BoondResource): BoondPerson {
+/**
+ * `included` (facultatif) permet de résoudre le NOM de l'agence : le listing
+ * ne porte que l'id de la relation, son contenu arrive dans la section
+ * `included` grâce au paramètre include (leçon a8).
+ */
+export function extractPerson(
+  r: BoondResource,
+  included?: Map<string, BoondResource>
+): BoondPerson {
   const a = r.attributes ?? {}
   const first = String((a.firstName as string) || "").trim()
   const last = String((a.lastName as string) || "").trim()
   const mgr = r.relationships?.[MANAGER_REL]?.data?.id
   const rawTitle = pickTitle(a)
+
+  const agencyId = r.relationships?.[AGENCY_REL]?.data?.id
+  const agencyRes =
+    agencyId !== undefined && agencyId !== null
+      ? included?.get(`agency#${String(agencyId)}`) ?? included?.get(`${AGENCY_REL}#${String(agencyId)}`)
+      : undefined
+  const agencyRaw = agencyRes?.attributes?.name ? String(agencyRes.attributes.name) : null
   return {
     boondId: String(r.id),
     name: `${first} ${last}`.trim(),
@@ -247,6 +302,8 @@ export function extractPerson(r: BoondResource): BoondPerson {
     arrival: pickArrival(a),
     departure: pickDeparture(a),
     dailyRate: pickDailyRate(a),
+    agency: normalizeAgency(agencyRaw),
+    agencyRaw,
     managerBoondId: mgr === undefined || mgr === null ? null : String(mgr),
     excluded: isExcludedType(a),
     activeState: isActiveState(a),

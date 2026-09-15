@@ -58,6 +58,12 @@ model Person {
   // Dernier état Boond relevé par la synchro (1 = à venir, 2 = IC, 3 = en
   // mission) — sert au croisement de contrôle avec le calcul missions.
   boondState    String?
+  /// Agence de rattachement (s5) : « PARIS » | « BORDEAUX ». Null = non
+  /// renseignée — la personne est alors rattachée à PARIS par défaut
+  /// (décision du 15/09 : continuité du classeur « Staffing SMALL Paris »)
+  /// et signalée au rapport de synchro. Alimentée par Boond, modifiable
+  /// dans /admin/personnes.
+  agency        String?
   /// TJM de vente par défaut (€/jour) de la FICHE Boond (a17) — cascade du
   /// CA : Mission.fees ?? defaultDailyRate. DONNÉE SIÈGE : ne jamais la
   /// sérialiser hors des pages/gates Siège (même règle que Mission.fees).
@@ -71,6 +77,7 @@ model Person {
   timeEntries   TimeEntry[]
 
   @@unique([name, kind])
+  @@index([agency])
   @@index([kind])
 }
 

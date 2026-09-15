@@ -2,7 +2,8 @@
 // pur (lib/staffing.ts). Utilisé par le script d'import (vérification) et par
 // les pages (dashboard, carte, IC…).
 import { prisma } from "./prisma"
-import { PersonKind } from "./types"
+import { Perimetre, PersonKind } from "./types"
+import { dansLePerimetre } from "./perimetre"
 import type { HeadcountPerson, StaffMission, StaffPerson } from "./staffing"
 
 /** Date Prisma (@db.Date, minuit UTC) → « YYYY-MM-DD ». */
@@ -19,15 +20,31 @@ export interface StaffingData {
   siege: HeadcountPerson[]
 }
 
-export async function loadStaffingData(): Promise<StaffingData> {
-  const persons = await prisma.person.findMany({
-    where: { active: true },
-    include: { absences: true },
-    orderBy: { createdAt: "asc" },
-  })
-  const missions = await prisma.mission.findMany({
-    orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
-  })
+/**
+ * Charge les entrées du moteur pour un PÉRIMÈTRE (s5). Le filtrage se fait
+ * ICI, jamais dans le moteur : lib/staffing.ts reste la réplique certifiée de
+ * l'Excel, et le périmètre « Paris » (qui absorbe les personnes sans agence)
+ * rend donc exactement les chiffres d'avant s5.
+ * Les missions suivent leur titulaire : celles d'une personne hors périmètre
+ * sont écartées, sinon la carte et les taux compteraient des missions
+ * orphelines.
+ */
+export async function loadStaffingData(
+  perimetre: Perimetre = Perimetre.TOUT
+): Promise<StaffingData> {
+  const persons = (
+    await prisma.person.findMany({
+      where: { active: true },
+      include: { absences: true },
+      orderBy: { createdAt: "asc" },
+    })
+  ).filter((p) => dansLePerimetre(p.agency, perimetre))
+  const retenus = new Set(persons.map((p) => p.id))
+  const missions = (
+    await prisma.mission.findMany({
+      orderBy: [{ rank: "asc" }, { createdAt: "asc" }],
+    })
+  ).filter((m) => retenus.has(m.personId))
 
   const people: StaffPerson[] = persons
     .filter((p) => p.kind === PersonKind.CONSULTANT)

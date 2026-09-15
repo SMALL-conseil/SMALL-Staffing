@@ -22,6 +22,7 @@ import type { Prisma, PrismaClient } from "@prisma/client"
 import { CONSULTANT_GRADES, PersonKind, SIEGE_GRADES } from "./types"
 import {
   extractPerson,
+  indexIncluded,
   fetchResourceDetail,
   fetchResources,
   normText,
@@ -60,6 +61,12 @@ export interface SyncReport {
   noTitleSynced: string[]
   /** TJM fiche posés ou mis à jour ce passage (Person.defaultDailyRate, a17). */
   ratesSet: number
+  /** Agences posées ou mises à jour ce passage (Person.agency, s5). */
+  agencesSet: number
+  /** Personnes du flux dont l'agence Boond n'est ni Paris ni Bordeaux (ou
+   *  absente) : rattachées à PARIS par défaut, à corriger dans Boond ou au
+   *  registre. Le libellé brut est rappelé quand il existe. */
+  sansAgence: string[]
   /** Consultants ACTIFS du flux sans TJM sur leur fiche Boond — la cascade du
    *  CA retombe alors sur les seuls honoraires saisis mission par mission. */
   activesSansTaux: string[]
@@ -76,7 +83,7 @@ function emptyReport(received: number, pages: number): SyncReport {
     skippedExcluded: 0, skippedInactive: [], skippedNoTitle: [], skippedNoArrival: [],
     arrivalsFromDetail: 0, uniqueConflicts: [],
     assumedConsultant: [], unknownTitles: [], gradesPreserved: [], noTitleSynced: [],
-    ratesSet: 0, activesSansTaux: [],
+    ratesSet: 0, activesSansTaux: [], agencesSet: 0, sansAgence: [],
     kindConflicts: [], departuresSet: [],
     absentsDuFlux: [], nonRapproches: 0, errors: [],
   }
@@ -225,8 +232,11 @@ export async function runBoondSync(
               boondState: p.state,
               boondSyncedAt: now,
               defaultDailyRate: p.dailyRate,
+              agency: p.agency,
             },
           })
+          if (p.agency !== null) report.agencesSet++
+          else report.sansAgence.push(`${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`)
           if (p.dailyRate !== null) report.ratesSet++
           else if (kind === PersonKind.CONSULTANT) report.activesSansTaux.push(p.name)
           if (p.departure) report.departuresSet.push({ name: p.name, date: p.departure })
@@ -287,6 +297,18 @@ export async function runBoondSync(
         }
       } else {
         report.noTitleSynced.push(p.name)
+      }
+      // Agence (s5) : posée ou mise à jour quand Boond en fournit une de
+      // reconnaissable ; JAMAIS effacée (une agence saisie au registre survit
+      // à un tenant incomplet — « et/ou dans l'app »).
+      if (p.agency !== null && p.agency !== person.agency) {
+        data.agency = p.agency
+        report.agencesSet++
+      }
+      if (p.agency === null && !person.agency) {
+        report.sansAgence.push(
+          `${p.name}${p.agencyRaw ? ` (Boond : « ${p.agencyRaw} »)` : " (aucune agence Boond)"}`
+        )
       }
       // TJM fiche (a17) : posé ou mis à jour quand Boond en fournit un —
       // JAMAIS effacé quand la fiche n'en porte pas (même prudence que le
@@ -362,8 +384,11 @@ class DryRunRollback extends Error {
 export async function syncBoond(opts: { dryRun?: boolean } = {}): Promise<SyncReport> {
   const dryRun = opts.dryRun === true
   const startedAt = new Date()
-  const { resources, pages } = await fetchResources()
-  const items = resources.map(extractPerson)
+  const { resources, included, pages } = await fetchResources()
+  // `included` porte le nom des agences (s5) — sans lui, la relation n'est
+  // qu'un identifiant (même leçon que pour le manager, a8).
+  const idx = indexIncluded(included)
+  const items = resources.map((r) => extractPerson(r, idx))
 
   let report: SyncReport
   if (dryRun) {

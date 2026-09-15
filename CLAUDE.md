@@ -188,6 +188,38 @@ Signaux : missions sans honoraires (exclues), jours de production sans mission
 dans l'app. Sans jours synchronisés : convention seule (comportement pré-a12).
 Couleurs de marque : `lib/client-brand.ts` ; logos : `public/logos/<slug>.png`.
 
+### Périmètres : agences Paris / Bordeaux (s5)
+
+Une PERSONNE porte une agence (`Person.agency` : « PARIS » | « BORDEAUX »,
+venue de Boond ou saisie dans /admin/personnes) ; l'app s'observe par
+PÉRIMÈTRE : Paris, Bordeaux, ou Tout SMALL. Décisions du 15/09 :
+- **agence non renseignée → rattachée à PARIS** en LECTURE (`agenceEffective`)
+  — continuité : tant qu'aucune agence n'est posée, Paris = tout le monde =
+  les chiffres d'avant s5. La colonne reste NULLE en base (une agence
+  inventée serait indétectable) et la personne est signalée ;
+- **droits** : un CONSULTANT n'accède qu'au périmètre de son agence, le SIÈGE
+  aux trois. Le compte est rapproché de sa fiche PAR EMAIL (aucun geste
+  d'administration) ; défaut = Paris pour le siège, son agence sinon ;
+- le périmètre vit dans un cookie (`PERIMETRE_COOKIE`) posé par
+  `POST /api/perimetre`, **toujours revalidé côté serveur** contre
+  `perimetresAutorises` — un cookie ou une requête forgés reçoivent un 403.
+
+Logique PURE et testée dans `lib/perimetre.ts` (c'est le contrat de sécurité
+de la feature) ; contexte serveur dans `lib/perimetre-session.ts`
+(`contextePerimetre()`, mémoïsé par rendu). **Le filtrage se fait dans
+`loadStaffingData(perimetre)`, JAMAIS dans le moteur** : `lib/staffing.ts`
+reste la réplique certifiée de l'Excel et les golden tests ne bougent pas.
+Les missions suivent leur titulaire (celles d'une personne hors périmètre
+sont écartées) — vérifié : Paris + Bordeaux = Tout, aux personnes et aux
+missions près. Pages filtrées : tableau de bord, carte, intercontrat,
+effectifs, reporting. Les REGISTRES (missions, personnes) restent complets :
+ce sont des outils de saisie, pas des vues d'analyse.
+Côté Boond : relation `BOOND_AGENCY_REL` (défaut `agency`, le tenant expose
+aussi `pole` — trancher avec `npx tsx scripts/boond-inspect-agences.ts`), nom
+résolu via `included` (leçon a8), normalisé par MOT-CLÉ (`normalizeAgency` :
+« SMALL Bordeaux » → BORDEAUX) ; agence **jamais effacée** par un flux muet
+(une saisie au registre survit), non reconnue = signalée au rapport.
+
 ### Registres SIÈGE (s3 — la saisie qui remplace l'Excel)
 
 `/admin/missions` : CRUD missions (rank d'ordre de saisie attribué à la

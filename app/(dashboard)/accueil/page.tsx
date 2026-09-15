@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight, Hourglass } from "lucide-react"
 import { loadStaffingData } from "@/lib/staffing-load"
+import { contextePerimetre } from "@/lib/perimetre-session"
 import { headcount, icAtDate, monthlyKpis, yearKpis, ytdRates } from "@/lib/staffing"
 import { CONSULTANT_GRADES, SIEGE_GRADES } from "@/lib/types"
 import {
@@ -32,7 +33,8 @@ export default async function DashboardPage({
   const session = await auth()
   if (!session?.user) redirect("/login")
 
-  const { people, missions, siege } = await loadStaffingData()
+  const { perimetre } = await contextePerimetre()
+  const { people, missions, siege } = await loadStaffingData(perimetre)
   const today = todayParis()
   const currentYear = Number(today.slice(0, 4))
   const currentMonth = Number(today.slice(5, 7))

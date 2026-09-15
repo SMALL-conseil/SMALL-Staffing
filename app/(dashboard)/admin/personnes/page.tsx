@@ -8,6 +8,7 @@ import { formatDateShort, formatDateTimeParis } from "@/lib/utils"
 import { computeCroisement } from "@/lib/boond-sync"
 import AbsencesAdmin from "./AbsencesAdmin"
 import SyncBoondCard from "./SyncBoondCard"
+import AgenceCell from "@/components/AgenceCell"
 
 // Registre des personnes (ADMIN) — consultants et siège en LECTURE (la
 // synchro Boond du lot s4 alimentera ce registre ; d'ici là : import Excel).
@@ -182,16 +183,16 @@ export default async function AdminPersonnesPage() {
           <span className="text-[12px] font-bold text-anthracite">
             Consultants ({consultants.length})
           </span>
-          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">lecture seule</span>
+          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">agence modifiable</span>
         </div>
         <div className="px-5 py-2 border-b border-fond">
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
             <div className="col-span-3">Nom</div>
             <div className="col-span-1">Grade</div>
+            <div className="col-span-2">Agence</div>
             <div className="col-span-2">Arrivée</div>
             <div className="col-span-2">Départ</div>
-            <div className="col-span-3">Manager</div>
-            <div className="col-span-1 text-right">Missions</div>
+            <div className="col-span-2">Manager</div>
           </div>
         </div>
         <div className="divide-y divide-fond">
@@ -199,15 +200,18 @@ export default async function AdminPersonnesPage() {
             <div key={p.id} className="px-5 py-2 grid grid-cols-12 gap-2 items-center text-[12.5px]">
               <div className="col-span-3 font-bold text-anthracite truncate">
                 {p.name}
-                {p.email && (
-                  <span className="block text-[10.5px] text-label font-normal truncate">{p.email}</span>
-                )}
+                <span className="block text-[10.5px] text-label font-normal truncate">
+                  {p.email ? `${p.email} · ` : ""}
+                  {p._count.missions} mission{p._count.missions > 1 ? "s" : ""}
+                </span>
               </div>
               <div className="col-span-1 text-texte">{p.grade}</div>
+              <div className="col-span-2">
+                <AgenceCell personId={p.id} agency={p.agency} />
+              </div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
-              <div className="col-span-3 text-texte-2 truncate">{p.manager?.name ?? "—"}</div>
-              <div className="col-span-1 text-right text-texte">{p._count.missions}</div>
+              <div className="col-span-2 text-texte-2 truncate">{p.manager?.name ?? "—"}</div>
             </div>
           ))}
         </div>
@@ -216,12 +220,13 @@ export default async function AdminPersonnesPage() {
       <div className="card overflow-hidden">
         <div className="px-5 py-3 border-b border-fond bg-creme flex items-baseline justify-between">
           <span className="text-[12px] font-bold text-anthracite">Siège ({siege.length})</span>
-          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">lecture seule</span>
+          <span className="text-[10.5px] text-label uppercase tracking-[0.12em]">agence modifiable</span>
         </div>
         <div className="px-5 py-2 border-b border-fond">
           <div className="grid grid-cols-12 gap-2 text-[10.5px] font-bold text-label uppercase tracking-[0.14em]">
-            <div className="col-span-4">Nom</div>
-            <div className="col-span-4">Grade</div>
+            <div className="col-span-3">Nom</div>
+            <div className="col-span-3">Grade</div>
+            <div className="col-span-2">Agence</div>
             <div className="col-span-2">Arrivée</div>
             <div className="col-span-2">Départ</div>
           </div>
@@ -229,8 +234,11 @@ export default async function AdminPersonnesPage() {
         <div className="divide-y divide-fond">
           {siege.map((p) => (
             <div key={p.id} className="px-5 py-2 grid grid-cols-12 gap-2 items-center text-[12.5px]">
-              <div className="col-span-4 font-bold text-anthracite truncate">{p.name}</div>
-              <div className="col-span-4 text-texte truncate">{p.grade}</div>
+              <div className="col-span-3 font-bold text-anthracite truncate">{p.name}</div>
+              <div className="col-span-3 text-texte truncate">{p.grade}</div>
+              <div className="col-span-2">
+                <AgenceCell personId={p.id} agency={p.agency} />
+              </div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.arrivalDate)}</div>
               <div className="col-span-2 text-texte-2 text-[12px]">{dateCell(p.departureDate)}</div>
             </div>

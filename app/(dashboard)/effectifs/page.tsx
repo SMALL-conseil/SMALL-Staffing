@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { loadStaffingData } from "@/lib/staffing-load"
+import { contextePerimetre } from "@/lib/perimetre-session"
 import { headcount, type HeadcountPerson } from "@/lib/staffing"
 import { CONSULTANT_GRADES, SIEGE_GRADES } from "@/lib/types"
 import { MOIS_COURTS, todayParis } from "@/lib/staffing-ui"
@@ -25,7 +26,8 @@ export default async function EffectifsPage({
   const parsed = Number((await searchParams).annee)
   const year = Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100 ? parsed : currentYear
 
-  const { people, siege } = await loadStaffingData()
+  const { perimetre } = await contextePerimetre()
+  const { people, siege } = await loadStaffingData(perimetre)
   const months: { y: number; m: number; label: string }[] = [
     ...Array.from({ length: 12 }, (_, i) => ({ y: year, m: i + 1, label: MOIS_COURTS[i] })),
     { y: year + 1, m: 1, label: `Janv ${String(year + 1).slice(2)}` },

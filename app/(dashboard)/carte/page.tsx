@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { loadStaffingData } from "@/lib/staffing-load"
+import { contextePerimetre } from "@/lib/perimetre-session"
 import { carteStaffing, staffableDays } from "@/lib/staffing"
 import { clientColorMap, MOIS_COURTS, todayParis } from "@/lib/staffing-ui"
 
@@ -24,7 +25,8 @@ export default async function CartePage({
   const parsed = Number(param)
   const year = Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100 ? parsed : currentYear
 
-  const { people, missions } = await loadStaffingData()
+  const { perimetre } = await contextePerimetre()
+  const { people, missions } = await loadStaffingData(perimetre)
   const rows = carteStaffing(people, missions, year)
   const byId = new Map(people.map((p) => [p.id, p]))
   const colors = clientColorMap(missions)

@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { loadStaffingData } from "@/lib/staffing-load"
+import { contextePerimetre } from "@/lib/perimetre-session"
 import { icAtDate, mouvementsMoisProchain, sortiesMoisCourant } from "@/lib/staffing"
 import { libelleMois, todayParis } from "@/lib/staffing-ui"
 import { formatDate, formatDateShort } from "@/lib/utils"
@@ -12,7 +13,8 @@ export default async function IntercontratPage() {
   const session = await auth()
   if (!session?.user) redirect("/login")
 
-  const { people, missions } = await loadStaffingData()
+  const { perimetre } = await contextePerimetre()
+  const { people, missions } = await loadStaffingData(perimetre)
   const today = todayParis()
   const year = Number(today.slice(0, 4))
   const month = Number(today.slice(5, 7))

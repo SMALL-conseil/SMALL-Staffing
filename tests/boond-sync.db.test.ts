@@ -49,6 +49,8 @@ function bp(over: Partial<BoondPerson>): BoondPerson {
     arrival: "2026-01-05",
     departure: null,
     dailyRate: null,
+    agency: null,
+    agencyRaw: null,
     managerBoondId: null,
     excluded: false,
     activeState: true,
@@ -336,6 +338,46 @@ describe("runBoondSync (intégration, rollback)", () => {
       expect(r3.ratesSet).toBe(0)
       expect((await tx.person.findUnique({ where: { boondId: "test-r1" } }))?.defaultDailyRate).toBe(1050)
       expect(r3.activesSansTaux).toEqual(["TEST BOOND Taux"]) // signalé tant que la fiche Boond est vide
+    })
+  })
+
+  it("agence (s5) : posée à la création, mise à jour, JAMAIS effacée, non reconnue signalée", async () => {
+    if (!dbOk) return
+    await withRollback(async (tx) => {
+      const r1 = await runBoondSync(
+        tx,
+        [
+          bp({ boondId: "test-ag1", name: "TEST BOOND Bdx", title: "C", agency: "BORDEAUX", agencyRaw: "SMALL Bordeaux" }),
+          bp({ boondId: "test-ag2", name: "TEST BOOND Flou", title: "C", agency: null, agencyRaw: "SMALL Lyon" }),
+        ],
+        1
+      )
+      expect(r1.agencesSet).toBe(1)
+      expect(r1.sansAgence).toEqual(['TEST BOOND Flou (Boond : « SMALL Lyon »)'])
+      expect((await tx.person.findUnique({ where: { boondId: "test-ag1" } }))?.agency).toBe("BORDEAUX")
+      // non reconnue → colonne laissée nulle : le repli Paris est une LECTURE,
+      // jamais une écriture (une agence fausse en base serait indétectable)
+      expect((await tx.person.findUnique({ where: { boondId: "test-ag2" } }))?.agency).toBeNull()
+
+      // Mutation d'agence reflétée…
+      const r2 = await runBoondSync(
+        tx,
+        [bp({ boondId: "test-ag1", name: "TEST BOOND Bdx", title: "C", agency: "PARIS", agencyRaw: "SMALL Paris" })],
+        1
+      )
+      expect(r2.agencesSet).toBe(1)
+      expect((await tx.person.findUnique({ where: { boondId: "test-ag1" } }))?.agency).toBe("PARIS")
+
+      // …mais un flux SANS agence reconnue n'efface pas celle du registre
+      // (« Boond ET/OU app » : une saisie manuelle doit survivre).
+      const r3 = await runBoondSync(
+        tx,
+        [bp({ boondId: "test-ag1", name: "TEST BOOND Bdx", title: "C", agency: null, agencyRaw: null })],
+        1
+      )
+      expect(r3.agencesSet).toBe(0)
+      expect(r3.sansAgence).toEqual([])
+      expect((await tx.person.findUnique({ where: { boondId: "test-ag1" } }))?.agency).toBe("PARIS")
     })
   })
 
