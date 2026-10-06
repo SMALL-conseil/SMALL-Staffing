@@ -646,10 +646,42 @@ personnes présentes côté app seul — **une agence vide compte dans PARIS**
 
 **Diagnostic posé sur octobre 2026 (06/10)** : 2,35 pt d'écart (84,15 % contre
 81,81 %), numérateur IDENTIQUE des deux côtés (616 j), donc 21 j staffables en
-trop — deux absences prolongées, et rien d'autre : Danny Gaurat (12/10 → 12/11,
-jamais saisie dans l'app, 15 j) et Julie Bichon (début 09/10 au classeur, 18/10
-dans l'app, 6 j). Les absences prolongées sont le POINT DE DÉRIVE du dispositif :
-Boond ne les porte pas, elles se saisissent deux fois à la main.
+trop, portés par deux lignes seulement : Danny Gaurat (fenêtre 12/10 → 12/11 au
+classeur, absente de l'app, 15 j) et Julie Bichon (début 09/10 au classeur,
+18/10 dans l'app, 6 j).
+
+### ⚠️ Les colonnes « Absence » du classeur garent aussi des INTERCONTRATS
+
+**Le piège le plus coûteux du dispositif, et il flatte le taux.** Vérification
+faite auprès de Sacha le 06/10/2026 : **Danny Gaurat n'est pas absent, il est en
+intercontrat depuis longtemps** — sa fenêtre au classeur est un parking. Or les
+deux notions jouent en sens INVERSE :
+
+- une **absence** sort la personne du dénominateur → le taux **monte** ;
+- un **intercontrat** la laisse dans le dénominateur sans numérateur → le taux
+  **baisse**, et c'est précisément ce que le KPI doit montrer.
+
+Conséquences, à retenir avant de « recoller » quoi que ce soit :
+
+1. **la golden source est fausse sur ce point** : les 84,15 % d'octobre sont
+   flattés par les 15 jours de Danny. Le vrai taux Paris d'octobre est celui de
+   l'app — 81,81 %, ou **82,46 %** une fois la seule absence réelle (Julie)
+   corrigée. Le classeur, lui, est à corriger côté classeur ;
+2. **aucune absence ne s'applique en bloc** depuis le classeur (cf. a43 plus
+   bas) : rien dans le fichier ne distingue les deux cas, seul un humain sait ;
+3. l'app, elle, ne confond pas : un intercontrat est un trou dans la carte de
+   staffing, une absence est une fenêtre dans `LongAbsence`.
+
+Les absences prolongées restent le POINT DE DÉRIVE du dispositif : Boond ne les
+porte pas, elles se saisissent deux fois à la main (colonnes du classeur +
+`/admin/personnes`), et rien ne rapproche les deux saisies.
+
+`npx tsx scripts/cra-personne.ts "<nom|email>" [AAAA-MM|AAAA]` (a43) lit le CRA
+Boond jour par jour : fiche, pointages, puis les SÉRIES de jours ouvrés sans
+production — celles qui portent des jours d'absence donnent la fenêtre réelle
+(« absence POINTÉE du … au … »), les autres ne disent que « CRA non saisi ».
+C'est ainsi qu'on retrouve la date d'une absence que personne n'a notée. Limite :
+le CRA se remplit après coup, il ne dira rien d'une absence à venir.
 
 ### Changements de nom et recollement (a42)
 
@@ -661,15 +693,18 @@ côté, −22 j de l'autre — cas Thessa LOPES → Thessa Franco, confirmé le
 retenu à l'affichage. **Jamais de rapprochement deviné** : deux noms ne se
 confondent pas parce qu'ils se ressemblent — un alias s'ajoute à la main.
 
-`npx tsx scripts/recoller.ts "<xlsx>" [AAAA-MM] [--perimetre PARIS] [--absences]
-[--agences] [--personnes] [--missions] [--tout] [--appliquer]` applique les
+`npx tsx scripts/recoller.ts "<xlsx>" [AAAA-MM] [--perimetre PARIS] [--agences]
+[--personnes] [--missions] [--tout] [--absence "NOM"] [--appliquer]` applique les
 corrections que `compare-excel.ts` se contente de nommer. Plan pur et testé dans
 `lib/recollement.ts`. **Rien n'est écrit sans `--appliquer`**, et seules les
 catégories demandées le sont. Qui a raison (décidé le 06/10/2026) :
 
-- **absences prolongées → le CLASSEUR** (seul endroit où elles vivent) : ajout
-  et correction sont appliqués ; une absence connue de l'app seule est
-  **signalée, jamais supprimée** ;
+- **absences prolongées → PERSONNE, sans un humain** (a43, cf. le piège
+  ci-dessus) : chaque divergence est une **proposition chiffrée** — la fenêtre
+  des deux côtés, l'effet en jours staffables et en points de taux — appliquée
+  seulement par `--absence "Julie BICHON"`. `--absences` est refusé avec son
+  explication, et `--tout` n'inclut PAS cette catégorie. Une absence connue de
+  l'app seule est **signalée, jamais supprimée** ;
 - **grade / arrivée / départ → l'APP** (Boond fait foi) : seulement signalés
   comme « classeur en retard » ;
 - fiche ou mission manquante → créée (agence = périmètre recollé) ; mission du

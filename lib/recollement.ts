@@ -11,13 +11,17 @@
 //  toutes et dit, pour chacun, QUI a raison.
 //
 //  QUI A RAISON — la règle de départage, décidée le 06/10/2026 :
-//   · ABSENCES PROLONGÉES → le CLASSEUR. Elles ne sont nulle part ailleurs :
-//     Boond ne les porte pas, l'app ne les devine pas, elles se saisissent à
-//     la main des deux côtés — et c'est exactement là que la dérive est née
-//     (octobre 2026 : 21 j staffables en trop, 2,35 pt de taux).
-//     Ajout et correction sont des ACTIONS ; une SUPPRESSION ne l'est jamais
-//     (une absence connue de l'app seule peut être la plus récente) — elle est
-//     signalée, l'humain tranche.
+//   · ABSENCES PROLONGÉES → PERSONNE, tant qu'un humain n'a pas tranché.
+//     Corrigé le 06/10 au soir : les colonnes « Absence » du classeur servent
+//     AUSSI de parking pour un consultant simplement en INTERCONTRAT (cas
+//     Danny Gaurat, 12/10 → 12/11 : aucune absence, un intercontrat qui
+//     dure). Or les deux sont l'inverse l'un de l'autre pour le taux — une
+//     absence SORT la personne du dénominateur et FLATTE le taux, un
+//     intercontrat l'y laisse et le pénalise, ce qui est tout l'intérêt du
+//     KPI. Appliquer le classeur en bloc alignerait donc l'app sur un chiffre
+//     faux. Chaque divergence d'absence est une PROPOSITION, appliquée
+//     nommément (`absencesConfirmees`) et jamais autrement. Une SUPPRESSION
+//     n'est jamais une action, même confirmée : elle est signalée.
 //   · GRADE, ARRIVÉE, DÉPART → l'APP. Ils viennent de Boond (synchro
 //     quotidienne) ; le classeur est en retard par construction. Jamais
 //     écrasés depuis l'Excel, seulement signalés.
@@ -140,9 +144,25 @@ export interface Signalement {
   detail: string
 }
 
+/**
+ * Divergence d'absence en attente d'un humain : le classeur ne distingue pas
+ * une vraie absence d'un intercontrat garé dans les mêmes colonnes, et les
+ * deux jouent en sens INVERSE sur le taux. `avant` null = aucune absence dans
+ * l'app aujourd'hui.
+ */
+export interface PropositionAbsence {
+  nom: string
+  personId: string
+  absenceId: string | null
+  avant: Fenetre | null
+  apres: Fenetre
+}
+
 export interface Plan {
   actions: Action[]
   signalements: Signalement[]
+  /** Propositions d'absence : à confirmer nommément, jamais appliquées en bloc. */
+  absencesAConfirmer: PropositionAbsence[]
 }
 
 const memeFenetre = (a: Fenetre, b: Fenetre) => a.start === b.start && (a.end ?? null) === (b.end ?? null)
@@ -161,6 +181,13 @@ export interface OptionsPlan {
    * s7 la refuserait de toute façon) — on signale, l'humain arbitre.
    */
   horsPerimetre?: { nom: string; agence: string | null }[]
+  /**
+   * Noms dont la divergence d'absence est CONFIRMÉE par un humain : eux seuls
+   * donnent une action. Les autres restent des propositions à trancher — le
+   * classeur ne distingue pas une vraie absence d'un intercontrat garé dans
+   * les mêmes colonnes (cas Danny Gaurat).
+   */
+  absencesConfirmees?: string[]
 }
 
 /**
@@ -178,9 +205,11 @@ export function planRecollement(
   const exclus = new Set((opts.exclus ?? []).map(cle))
   const actions: Action[] = []
   const signalements: Signalement[] = []
+  const absencesAConfirmer: PropositionAbsence[] = []
 
   const parCle = new Map(app.fiches.map((f) => [cle(f.nom), f]))
   const ailleurs = new Map((opts.horsPerimetre ?? []).map((f) => [cle(f.nom), f]))
+  const confirmees = new Set((opts.absencesConfirmees ?? []).map(cle))
   const consultants = classeur.consultants.filter((c) => !exclus.has(cle(c.nom)))
   /** Personnes du classeur laissées de côté : leurs missions aussi. */
   const laissees = new Set<string>()
@@ -241,20 +270,41 @@ export function planRecollement(
       }
     }
 
-    // ---- absences : le classeur fait foi (ajout, correction)
+    // ---- absences : proposition, jamais une évidence (cf. en-tête)
+    const confirmee = confirmees.has(cle(c.nom))
     if (c.absence) {
       if (!fiche.absences.length) {
-        actions.push({ type: "ABSENCE_AJOUT", nom: fiche.nom, personId: fiche.id, fenetre: c.absence })
+        if (confirmee) {
+          actions.push({ type: "ABSENCE_AJOUT", nom: fiche.nom, personId: fiche.id, fenetre: c.absence })
+        } else {
+          absencesAConfirmer.push({
+            nom: fiche.nom,
+            personId: fiche.id,
+            absenceId: null,
+            avant: null,
+            apres: c.absence,
+          })
+        }
       } else if (fiche.absences.length === 1) {
         const a = fiche.absences[0]
         if (!memeFenetre(a, c.absence)) {
-          actions.push({
-            type: "ABSENCE_MAJ",
-            nom: fiche.nom,
-            absenceId: a.id,
-            avant: { start: a.start, end: a.end },
-            apres: c.absence,
-          })
+          if (confirmee) {
+            actions.push({
+              type: "ABSENCE_MAJ",
+              nom: fiche.nom,
+              absenceId: a.id,
+              avant: { start: a.start, end: a.end },
+              apres: c.absence,
+            })
+          } else {
+            absencesAConfirmer.push({
+              nom: fiche.nom,
+              personId: fiche.id,
+              absenceId: a.id,
+              avant: { start: a.start, end: a.end },
+              apres: c.absence,
+            })
+          }
         }
       } else if (!fiche.absences.some((a) => memeFenetre(a, c.absence!))) {
         // Plusieurs absences côté app : laquelle le classeur décrit-il ? On ne
@@ -375,7 +425,7 @@ export function planRecollement(
     })
   }
 
-  return { actions, signalements }
+  return { actions, signalements, absencesAConfirmer }
 }
 
 /** Une ligne lisible par action — le plan est fait pour être relu avant d'écrire. */

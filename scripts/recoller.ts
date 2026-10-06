@@ -1,17 +1,19 @@
 // ============================================================
-//  RECOLLER LE REGISTRE DE L'APP SUR LE CLASSEUR (a42)
+//  RECOLLER LE REGISTRE DE L'APP SUR LE CLASSEUR (a42, absences revues a43)
 //      npx tsx scripts/recoller.ts "<xlsx|dossier>" [AAAA-MM] [--perimetre PARIS]
-//                                  [--absences] [--agences] [--personnes] [--missions] [--tout]
-//                                  [--appliquer]
+//                                  [--agences] [--personnes] [--missions] [--tout]
+//                                  [--absence "NOM"] (répétable) [--appliquer]
 //
 //  compare-excel.ts (a21/a41) DIT où est l'écart. Ce script le CORRIGE — sans
 //  jamais rien deviner. Le plan se lit avant d'écrire : sans --appliquer, rien
 //  n'est touché, et seules les catégories demandées sont appliquées.
 //
 //  Qui a raison (règle décidée le 06/10/2026, détaillée dans lib/recollement.ts) :
-//   · ABSENCES PROLONGÉES → le classeur. Elles ne vivent nulle part ailleurs
-//     (Boond ne les porte pas) et se saisissent deux fois à la main : c'est de
-//     là que vient la dérive d'octobre 2026 (21 j staffables, 2,35 pt).
+//   · ABSENCES PROLONGÉES → PERSONNE, tant qu'un humain n'a pas tranché. Le
+//     classeur gare aussi des INTERCONTRATS dans ces colonnes (cas Danny
+//     Gaurat) : une absence sort la personne du dénominateur et FLATTE le
+//     taux, un intercontrat l'y laisse et le pénalise. Chaque fenêtre se
+//     confirme nommément : --absence "Julie BICHON".
 //   · GRADE / ARRIVÉE / DÉPART → l'app (synchro Boond). Jamais écrasés par
 //     l'Excel : seulement signalés comme « classeur en retard ».
 //   · Fiche ou mission MANQUANTE → créée ; mission du même client aux dates
@@ -30,9 +32,9 @@ import { readdirSync, statSync } from "fs"
 import { join } from "path"
 import { prisma } from "../lib/prisma"
 import { loadStaffingData, toIsoDate } from "../lib/staffing-load"
-import { monthlyKpis } from "../lib/staffing"
+import { monthlyKpis, staffableDays, staffedDays } from "../lib/staffing"
 import { dansLePerimetre } from "../lib/perimetre"
-import { Perimetre, PersonKind } from "../lib/types"
+import { GRADE_INDEP, GRADE_ROOKIE, Perimetre, PersonKind } from "../lib/types"
 import {
   ALIAS_CLASSEUR,
   CONSULTANTS_EXCLUS,
@@ -99,14 +101,26 @@ async function main() {
   const args = process.argv.slice(2)
   const moisArg = args.find((a) => /^\d{4}-\d{2}$/.test(a))
   const perimetre = lirePerimetre(args)
-  const iDrapeau = args.findIndex((a) => a === "--perimetre")
-  const cible = args.find(
-    (a, k) => !a.startsWith("--") && a !== moisArg && !(iDrapeau >= 0 && k === iDrapeau + 1)
+  // Les valeurs qui SUIVENT un drapeau ne sont pas le chemin du classeur.
+  const apresDrapeau = new Set(
+    args.flatMap((a, k) => (a === "--perimetre" || a === "--absence" ? [k + 1] : []))
   )
+  const cible = args.find((a, k) => !a.startsWith("--") && a !== moisArg && !apresDrapeau.has(k))
   if (!cible) {
     throw new ErreurUtilisateur(
       `Usage : npx tsx scripts/recoller.ts "<xlsx|dossier>" [AAAA-MM] [--perimetre PARIS]\n` +
-        `        [--absences] [--agences] [--personnes] [--missions] [--tout] [--appliquer]`
+        `        [--agences] [--personnes] [--missions] [--tout] [--appliquer]\n` +
+        `        [--absence "NOM"]   (répétable — une absence ne s'applique que nommément)`
+    )
+  }
+  if (args.includes("--absences")) {
+    throw new ErreurUtilisateur(
+      `--absences n'existe plus (06/10/2026).\n` +
+        `  Le classeur gare aussi des INTERCONTRATS dans ses colonnes « Absence » (cas\n` +
+        `  Danny Gaurat) : une absence sort la personne du dénominateur et FLATTE le taux,\n` +
+        `  un intercontrat l'y laisse et le pénalise. Les appliquer en bloc alignerait\n` +
+        `  l'app sur un chiffre faux.\n` +
+        `  Chaque absence se confirme nommément : --absence "Julie BICHON"`
     )
   }
   const chemin = resoudreClasseur(cible)
@@ -114,7 +128,13 @@ async function main() {
   const year = Number((moisArg ?? today).slice(0, 4))
   const month = Number((moisArg ?? today).slice(5, 7))
   const tout = args.includes("--tout")
-  const demandees = new Set<Categorie>(CATEGORIES.filter((c) => tout || args.includes(`--${c}`)))
+  // « absences » n'entre JAMAIS dans --tout : elle se confirme personne par
+  // personne (--absence "NOM"), pour la raison dite plus haut.
+  const demandees = new Set<Categorie>(
+    CATEGORIES.filter((c) => c !== "absences" && (tout || args.includes(`--${c}`)))
+  )
+  const confirmees = args.flatMap((a, k) => (a === "--absence" && args[k + 1] ? [args[k + 1]] : []))
+  if (confirmees.length) demandees.add("absences")
   const appliquer = args.includes("--appliquer")
 
   // --- Les deux côtés -------------------------------------------------------
@@ -187,6 +207,7 @@ async function main() {
     agence: perimetre === Perimetre.TOUT ? null : perimetre,
     exclus: CONSULTANTS_EXCLUS,
     horsPerimetre,
+    absencesConfirmees: confirmees,
   })
 
   // --- L'état des lieux -----------------------------------------------------
@@ -217,6 +238,45 @@ async function main() {
         (retenue ? (appliquer ? "  → À APPLIQUER" : "  → retenue, mais --appliquer manquant") : `  → ignorée (ajouter --${c})`)
     )
     for (const a of lot) console.log(`    ${libelleAction(a)}`)
+  }
+
+  // --- Les absences : une proposition chiffrée, à confirmer nommément -------
+  if (plan.absencesAConfirmer.length) {
+    titre(`ABSENCES — ${plan.absencesAConfirmer.length} proposition(s) à confirmer`)
+    console.log(
+      `  Le classeur gare aussi des INTERCONTRATS dans ses colonnes « Absence » (cas Danny\n` +
+        `  Gaurat, 06/10/2026). Or les deux jouent en sens INVERSE : une absence SORT la\n` +
+        `  personne du dénominateur et fait MONTER le taux ; un intercontrat l'y laisse et le\n` +
+        `  fait baisser — c'est tout l'intérêt du KPI. D'où la confirmation, une par une.\n`
+    )
+    let sta = 0
+    let stf = 0
+    for (const p of avant.people) {
+      if (p.grade !== GRADE_ROOKIE && p.grade !== GRADE_INDEP)
+        sta += staffableDays(p, avant.missions, year, month)
+      if (p.grade !== GRADE_INDEP) stf += staffedDays(p, avant.missions, year, month)
+    }
+    for (const prop of plan.absencesAConfirmer) {
+      const p = avant.people.find((x) => x.id === prop.personId)
+      const compte = p ? p.grade !== GRADE_ROOKIE && p.grade !== GRADE_INDEP : false
+      // Dans les cas divergents, l'app porte 0 ou 1 absence : la fenêtre du
+      // classeur remplace donc exactement ce qu'elle connaît.
+      const delta =
+        p && compte
+          ? staffableDays({ ...p, absences: [prop.apres] }, avant.missions, year, month) -
+            staffableDays(p, avant.missions, year, month)
+          : 0
+      const tauxSi = sta + delta > 0 ? stf / (sta + delta) : 0
+      console.log(
+        `  ${prop.nom}\n` +
+          `      classeur ${prop.apres.start} → ${prop.apres.end ?? "ouverte"}` +
+          ` · app ${prop.avant ? `${prop.avant.start} → ${prop.avant.end ?? "ouverte"}` : "aucune absence"}\n` +
+          `      effet sur ${MOIS_LONGS[month - 1]} : ${delta >= 0 ? "+" : "−"}${Math.abs(delta)} j staffables` +
+          (delta !== 0 ? ` → taux ${pct(kAvant.tauxSalaries)} → ${pct(tauxSi)}` : " → taux inchangé") +
+          `\n      si c'est une VRAIE absence :  --absence "${prop.nom}" --appliquer\n` +
+          `      si c'est un INTERCONTRAT :     ne rien faire ici, et retirer la fenêtre du classeur`
+      )
+    }
   }
 
   if (plan.signalements.length) {

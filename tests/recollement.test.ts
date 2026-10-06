@@ -20,7 +20,11 @@ const opts = { cle: cleNom, agence: "PARIS" as string | null }
 function plan(
   classeur: { consultants?: ConsultantClasseur[]; missions?: MissionClasseur[] },
   app: { fiches?: FicheApp[]; missions?: MissionApp[] },
-  o: Partial<typeof opts> & { exclus?: string[]; horsPerimetre?: { nom: string; agence: string | null }[] } = {}
+  o: Partial<typeof opts> & {
+    exclus?: string[]
+    horsPerimetre?: { nom: string; agence: string | null }[]
+    absencesConfirmees?: string[]
+  } = {}
 ) {
   return planRecollement(
     { consultants: classeur.consultants ?? [], missions: classeur.missions ?? [] },
@@ -51,26 +55,65 @@ const fiche = (p: Partial<FicheApp> = {}): FicheApp => ({
 
 const types = (actions: Action[]) => actions.map((a) => a.type)
 
-describe("absences — le classeur fait foi", () => {
-  it("absence du classeur inconnue de l'app → ajout (cas Danny Gaurat)", () => {
-    const { actions, signalements } = plan(
+describe("absences — une proposition, jamais une évidence", () => {
+  // Cas Danny Gaurat (06/10/2026) : le classeur porte « absence 12/10 → 12/11 »
+  // alors qu'il n'est pas absent — il est en INTERCONTRAT depuis longtemps,
+  // garé dans ces colonnes. Appliquer le classeur le sortirait du
+  // dénominateur et FLATTERAIT le taux. Donc : rien, sans confirmation.
+  it("absence au classeur inconnue de l'app → proposition, AUCUNE action", () => {
+    const { actions, absencesAConfirmer } = plan(
       { consultants: [consultant({ absence: { start: "2026-10-12", end: "2026-11-12" } })] },
       { fiches: [fiche()] }
     )
-    expect(actions).toHaveLength(1)
-    expect(actions[0]).toMatchObject({
-      type: "ABSENCE_AJOUT",
-      personId: "f1",
-      fenetre: { start: "2026-10-12", end: "2026-11-12" },
-    })
-    expect(signalements).toHaveLength(0)
+    expect(actions).toHaveLength(0)
+    expect(absencesAConfirmer).toEqual([
+      {
+        nom: "Danny GAURAT",
+        personId: "f1",
+        absenceId: null,
+        avant: null,
+        apres: { start: "2026-10-12", end: "2026-11-12" },
+      },
+    ])
+  })
+
+  it("… et une action dès qu'un humain l'a confirmée nommément", () => {
+    const { actions, absencesAConfirmer } = plan(
+      { consultants: [consultant({ absence: { start: "2026-10-12", end: "2026-11-12" } })] },
+      { fiches: [fiche()] },
+      { absencesConfirmees: ["Danny GAURAT"] }
+    )
+    expect(absencesAConfirmer).toHaveLength(0)
+    expect(actions[0]).toMatchObject({ type: "ABSENCE_AJOUT", personId: "f1" })
     expect(categorieDe(actions[0])).toBe("absences")
   })
 
-  it("même absence, début différent → correction (cas Julie Bichon)", () => {
+  it("une confirmation ne vaut que pour la personne nommée", () => {
+    const { actions, absencesAConfirmer } = plan(
+      {
+        consultants: [
+          consultant({ nom: "Danny GAURAT", absence: { start: "2026-10-12", end: "2026-11-12" } }),
+          consultant({ nom: "Julie BICHON", absence: { start: "2026-10-09", end: "2027-02-28" } }),
+        ],
+      },
+      {
+        fiches: [
+          fiche({ id: "f1", nom: "Danny GAURAT" }),
+          fiche({ id: "f2", nom: "Julie BICHON", absences: [{ id: "a2", start: "2026-10-18", end: "2027-02-28" }] }),
+        ],
+      },
+      { absencesConfirmees: ["Julie BICHON"] }
+    )
+    expect(actions).toHaveLength(1)
+    expect(actions[0]).toMatchObject({ type: "ABSENCE_MAJ", nom: "Julie BICHON" })
+    expect(absencesAConfirmer.map((p) => p.nom)).toEqual(["Danny GAURAT"])
+  })
+
+  it("même absence, début différent → correction une fois confirmée (cas Julie Bichon)", () => {
     const { actions } = plan(
       { consultants: [consultant({ absence: { start: "2026-10-09", end: "2027-02-28" } })] },
-      { fiches: [fiche({ absences: [{ id: "a1", start: "2026-10-18", end: "2027-02-28" }] })] }
+      { fiches: [fiche({ absences: [{ id: "a1", start: "2026-10-18", end: "2027-02-28" }] })] },
+      { absencesConfirmees: ["Danny GAURAT"] }
     )
     expect(actions).toEqual([
       {
@@ -83,21 +126,23 @@ describe("absences — le classeur fait foi", () => {
     ])
   })
 
-  it("fin d'absence différente → correction (cas Clémence Buysse)", () => {
+  it("fin d'absence différente → correction une fois confirmée (cas Clémence Buysse)", () => {
     const { actions } = plan(
       { consultants: [consultant({ absence: { start: "2026-06-07", end: "2027-02-28" } })] },
-      { fiches: [fiche({ absences: [{ id: "a1", start: "2026-06-07", end: "2026-12-31" }] })] }
+      { fiches: [fiche({ absences: [{ id: "a1", start: "2026-06-07", end: "2026-12-31" }] })] },
+      { absencesConfirmees: ["Danny GAURAT"] }
     )
     expect(types(actions)).toEqual(["ABSENCE_MAJ"])
   })
 
   it("absence identique → rien à faire (idempotence)", () => {
-    const { actions, signalements } = plan(
+    const { actions, signalements, absencesAConfirmer } = plan(
       { consultants: [consultant({ absence: { start: "2026-10-12", end: null } })] },
       { fiches: [fiche({ absences: [{ id: "a1", start: "2026-10-12", end: null }] })] }
     )
     expect(actions).toHaveLength(0)
     expect(signalements).toHaveLength(0)
+    expect(absencesAConfirmer).toHaveLength(0)
   })
 
   it("absence connue de l'app seule → signalée, JAMAIS supprimée", () => {
@@ -341,25 +386,44 @@ describe("cas composé — les cinq corrections du 06/10/2026 en un seul plan", 
     ],
   }
 
-  it("rend exactement les cinq corrections, et rien d'autre", () => {
-    const { actions, signalements } = plan(classeur, app)
+  it("sépare ce qui s'applique de ce qui demande un humain", () => {
+    const { actions, signalements, absencesAConfirmer } = plan(classeur, app)
+    // Les absences ne s'appliquent JAMAIS seules : Danny est un intercontrat
+    // garé dans les colonnes Absence, et rien dans le classeur ne le dit.
     expect(types(actions)).toEqual([
-      "ABSENCE_AJOUT", // Danny : 15 j staffables de trop
-      "ABSENCE_MAJ", // Julie : 6 j
-      "ABSENCE_MAJ", // Clémence : janvier-février 2027
       "AGENCE", // Thessa : agence vide → PARIS
       "PERSONNE_CREE", // Emeline (Indép)
       "MISSION_CREE", // sa mission ACCOR
+    ])
+    expect(absencesAConfirmer.map((p) => p.nom)).toEqual([
+      "Danny GAURAT",
+      "Julie BICHON",
+      "Clémence BUYSSE",
     ])
     // Thessa : le changement de nom est résolu, elle ne compte pas deux fois,
     // et sa mission BPI est reconnue comme déjà saisie.
     expect(signalements).toHaveLength(0)
   })
 
+  it("avec les seules absences confirmées, les autres restent en attente", () => {
+    const { actions, absencesAConfirmer } = plan(classeur, app, {
+      absencesConfirmees: ["Julie BICHON", "Clémence BUYSSE"],
+    })
+    expect(types(actions)).toEqual([
+      "ABSENCE_MAJ", // Julie
+      "ABSENCE_MAJ", // Clémence
+      "AGENCE",
+      "PERSONNE_CREE",
+      "MISSION_CREE",
+    ])
+    expect(absencesAConfirmer.map((p) => p.nom)).toEqual(["Danny GAURAT"])
+  })
+
   it("rejouer le plan après application ne propose plus rien (idempotence)", () => {
     const apres = {
       fiches: [
-        fiche({ id: "f1", nom: "Danny GAURAT", absences: [{ id: "n1", start: "2026-10-12", end: "2026-11-12" }] }),
+        // Danny : volontairement SANS absence — la sienne n'en est pas une.
+        fiche({ id: "f1", nom: "Danny GAURAT" }),
         fiche({
           id: "f2",
           nom: "Julie BICHON",
@@ -386,9 +450,14 @@ describe("cas composé — les cinq corrections du 06/10/2026 en un seul plan", 
         { id: "m5", personId: "f5", client: "ACCOR", start: "2026-10-09", end: "2026-12-11", share: 1 },
       ],
     }
-    const { actions, signalements } = plan(classeur, apres)
+    const { actions, signalements, absencesAConfirmer } = plan(classeur, apres, {
+      absencesConfirmees: ["Julie BICHON", "Clémence BUYSSE"],
+    })
     expect(actions).toHaveLength(0)
     expect(signalements).toHaveLength(0)
+    // Danny reste une proposition tant que personne ne tranche — et c'est
+    // heureux : son « absence » au classeur n'en est pas une.
+    expect(absencesAConfirmer.map((p) => p.nom)).toEqual(["Danny GAURAT"])
   })
 })
 
