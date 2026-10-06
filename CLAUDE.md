@@ -111,6 +111,31 @@ boondId pour la synchro s4) · `LongAbsence` (fenêtres soustraites du staffable
 `Mission` (client, dates, part 0–1, `rank` = ordre de saisie — fait foi pour la
 carte de staffing).
 
+### ⚠️ Le classeur a un bogue de formule : la DERNIÈRE ligne n'est jamais staffée (a40)
+
+Relevé du 06/10/2026 sur « Staffing SMALL - Paris Octobre ». Les formules de
+l'onglet **Staffés** bornent leur plage par
+`INDIRECT("Staffable!$A$2:$A$" & COUNTA(ANCHORARRAY(Staffable!$A$2)))` : COUNTA
+compte les noms **sans l'en-tête** (51) alors que la plage **démarre en ligne 2**
+— elle s'arrête donc en ligne 51 et laisse dehors la ligne 52. Les lignes
+d'agrégat, elles, comptent depuis `$A$1` (en-tête compris) et incluent bien
+cette dernière ligne.
+
+**Conséquence** : la personne du bas de la liste pèse dans l'EFFECTIF mais
+jamais dans les FACTURÉS. Le taux du classeur est sous-évalué, silencieusement,
+et la victime change à chaque nouvelle arrivée. En octobre 2026 : Emeline
+DICHAM (Indép, arrivée 09/10), 16 j staffables ET staffés que le classeur
+compte 0 → « + Indép » 82,86 % au lieu de 84,94 % (−2,08 pt). Novembre et
+décembre sont touchés de même. La ligne « hors indépendants » n'a rien eu cette
+fois **par chance** : la dernière ligne était un Indép, exclu de ce numérateur.
+
+`npx tsx scripts/verifier-classeur.ts "<xlsx>" [AAAA]` rejoue le moteur sur les
+REGISTRES du classeur et le confronte à ses propres cellules : les données étant
+identiques des deux côtés, tout écart ne peut venir que d'une formule. Sur
+octobre 2026 : 9 mois au cordeau, 3 mois divergents, tous sur la seule dernière
+ligne. **L'app est juste, le classeur est faux** — ne pas « corriger » le moteur
+pour recoller.
+
 ### Moteur `lib/staffing.ts` — réplique certifiée de l'Excel
 
 Golden tests dans `tests/golden/` (`npm test`) : extraits du classeur de référence,
