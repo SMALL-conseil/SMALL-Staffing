@@ -1,7 +1,7 @@
 // ============================================================
-//  COMPARATEUR classeur Excel ↔ base de l'app — a21.
-//      npx tsx scripts/compare-excel.ts "<chemin du xlsx>" [AAAA-MM]
-//  (mois par défaut : le mois courant)
+//  COMPARATEUR classeur Excel ↔ base de l'app — a21, périmètre a41.
+//      npx tsx scripts/compare-excel.ts "<chemin du xlsx>" [AAAA-MM] [--perimetre PARIS|BORDEAUX|TOUT]
+//  (mois par défaut : le mois courant ; périmètre par défaut : PARIS)
 //
 //  Pourquoi : le moteur est une réplique CERTIFIÉE de l'Excel (golden tests,
 //  0 écart). Un écart de taux ne vient donc jamais du calcul, mais des
@@ -11,6 +11,14 @@
 //  Ce script rejoue le MÊME moteur sur les deux jeux de données, chiffre
 //  l'écart, l'attribue consultant par consultant, puis liste les différences
 //  de registre — c'est la liste des corrections à faire pour recoller.
+//
+//  PÉRIMÈTRE (a41) : le classeur « Staffing SMALL Paris » ne contient QUE
+//  Paris. Comparer la base entière à ce classeur fabrique donc un écart de
+//  toutes pièces — tout Bordeaux tomberait du côté « app seule ». Le script
+//  charge désormais la base par périmètre, PARIS par défaut, pour que les deux
+//  côtés parlent du même cabinet. Rappel s5 : une personne SANS agence est
+//  comptée dans PARIS — c'est le premier suspect d'un taux parisien dilué.
+//
 //  Lecture seule : rien n'est écrit, ni dans le classeur, ni en base.
 // ============================================================
 import "dotenv/config"
@@ -20,8 +28,16 @@ import { prisma } from "../lib/prisma"
 import { loadStaffingData } from "../lib/staffing-load"
 import { monthlyKpis, staffableDays, staffedDays, workingDaysInMonth } from "../lib/staffing"
 import type { StaffMission, StaffPerson } from "../lib/staffing"
-import { GRADE_INDEP, GRADE_ROOKIE } from "../lib/types"
-import { CONSULTANTS_EXCLUS, normNom, readRegistres, toEngineInputs, toIso } from "../lib/excel-registres"
+import { GRADE_INDEP, GRADE_ROOKIE, Perimetre } from "../lib/types"
+import { agenceRenseignee, libellePerimetre } from "../lib/perimetre"
+import {
+  CONSULTANTS_EXCLUS,
+  normNom,
+  readKpiStaffing,
+  readRegistres,
+  toEngineInputs,
+  toIso,
+} from "../lib/excel-registres"
 import { MOIS_LONGS, todayParis } from "../lib/staffing-ui"
 
 const pct = (x: number) => `${(x * 100).toFixed(2).replace(".", ",")} %`
@@ -101,13 +117,45 @@ function titre(n: string) {
   console.log(`\n${"═".repeat(72)}\n${n}\n${"═".repeat(72)}`)
 }
 
+/**
+ * Périmètre demandé : `--perimetre PARIS`, `--perimetre=PARIS` ou `--paris`.
+ * Défaut PARIS — le classeur de référence est celui de Paris, et c'est le
+ * taux parisien qui sert au pilotage. Une valeur inconnue s'arrête net :
+ * silencieusement retomber sur Paris ferait mentir la comparaison.
+ */
+function lirePerimetre(args: string[]): Perimetre {
+  const valeurs = Object.values(Perimetre) as string[]
+  const court = args.find((a) => valeurs.includes(a.replace(/^--/, "").toUpperCase()) && a.startsWith("--"))
+  const i = args.findIndex((a) => a === "--perimetre")
+  const brut = (
+    args.find((a) => a.startsWith("--perimetre="))?.split("=")[1] ??
+    (i >= 0 ? args[i + 1] : undefined) ??
+    court?.replace(/^--/, "") ??
+    Perimetre.PARIS
+  )
+    .trim()
+    .toUpperCase()
+  if (!valeurs.includes(brut)) {
+    throw new ErreurUtilisateur(
+      `Périmètre inconnu : « ${brut} » — attendu ${valeurs.join(", ")}.\n` +
+        `  Exemple : npx tsx scripts/compare-excel.ts "<classeur.xlsx>" 2026-10 --perimetre PARIS`
+    )
+  }
+  return brut as Perimetre
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const moisArg = args.find((a) => /^\d{4}-\d{2}$/.test(a))
-  const cible = args.find((a) => !a.startsWith("--") && a !== moisArg)
+  const perimetre = lirePerimetre(args)
+  // La valeur qui SUIT « --perimetre » n'est pas le chemin du classeur.
+  const iDrapeau = args.findIndex((a) => a === "--perimetre")
+  const cible = args.find(
+    (a, k) => !a.startsWith("--") && a !== moisArg && !(iDrapeau >= 0 && k === iDrapeau + 1)
+  )
   if (!cible) {
     console.error(
-      'Usage : npx tsx scripts/compare-excel.ts "<chemin du classeur .xlsx OU de son dossier>" [AAAA-MM]'
+      'Usage : npx tsx scripts/compare-excel.ts "<chemin du classeur .xlsx OU de son dossier>" [AAAA-MM] [--perimetre PARIS|BORDEAUX|TOUT]'
     )
     process.exit(1)
   }
@@ -119,19 +167,37 @@ async function main() {
   // --- Les deux côtés, même moteur -----------------------------------------
   const reg = readRegistres(chemin)
   const excel: Cote = toEngineInputs(reg) // TEL QUEL (Elvire incluse) = ce qu'affiche l'Excel
-  const db = await loadStaffingData()
+  const db = await loadStaffingData(perimetre)
   const app: Cote = { people: db.people, missions: db.missions }
+  // Agences, pour nommer d'où viennent les personnes présentes côté app seul
+  // (une agence vide tombe dans PARIS — décision s5, premier suspect).
+  const agences = new Map(
+    (await prisma.person.findMany({ where: { active: true }, select: { name: true, agency: true } })).map(
+      (p) => [normNom(p.name), p.agency]
+    )
+  )
+  const agenceDe = (nom: string) => {
+    const a = agences.get(normNom(nom))
+    return agenceRenseignee(a) ? (a as string) : "agence vide → PARIS"
+  }
 
   const aE = agregats(excel, year, month)
   const aA = agregats(app, year, month)
   const kE = monthlyKpis(excel.people, excel.missions, year, month)
   const kA = monthlyKpis(app.people, app.missions, year, month)
 
-  titre(`COMPARAISON Excel ↔ app — ${MOIS_LONGS[month - 1]} ${year}`)
+  titre(`COMPARAISON Excel ↔ app — ${MOIS_LONGS[month - 1]} ${year} — périmètre ${libellePerimetre(perimetre)}`)
   console.log(`Classeur : ${chemin}`)
   console.log(`           modifié le ${statSync(chemin).mtime.toLocaleString("fr-FR")}`)
   console.log(`Registres : Excel ${reg.consultants.length} consultants / ${reg.missions.length} missions`)
   console.log(`            app   ${app.people.length} consultants / ${app.missions.length} missions`)
+  console.log(
+    `Périmètre : ${perimetre}` +
+      (perimetre === Perimetre.PARIS
+        ? `  (défaut — le classeur de référence ne contient que Paris ;` +
+          `\n            les personnes SANS agence y sont comptées, décision s5)`
+        : `  ⚠ le classeur, lui, ne contient que Paris : l'écart inclura tout ce qui n'y est pas`)
+  )
 
   titre("1. LE TAUX (salariés, hors indépendants)")
   const w = 30
@@ -147,6 +213,41 @@ async function main() {
     `${"Staffés non-Indép (j)".padEnd(w)}${jr(aE.stf).padStart(12)}${jr(aA.stf).padStart(12)}${ecartJ(aA.stf - aE.stf)}`
   )
   console.log(`${"Jours ouvrés du mois".padEnd(w)}${String(workingDaysInMonth(year, month)).padStart(12)}`)
+
+  // Trois nombres, pas deux : la CELLULE du classeur, le MOTEUR sur les
+  // registres du classeur, le MOTEUR sur la base. Entre les deux premiers,
+  // l'écart serait une FORMULE du classeur (a40) ; entre les deux derniers,
+  // des DONNÉES — et c'est le seul que ce script sait corriger.
+  const cellule = readKpiStaffing(chemin, year).find((k) => k.mois === month)
+  if (cellule?.tauxSalaries != null) {
+    const formule = kE.tauxSalaries - cellule.tauxSalaries
+    console.log(
+      `\n  Cellule du classeur                  ${pct(cellule.tauxSalaries)}` +
+        `   (affichée arrondie : ${(cellule.tauxSalaries * 100).toFixed(1).replace(".", ",")} %)` +
+        `\n  Moteur sur les registres du classeur ${pct(kE.tauxSalaries)}` +
+        (Math.abs(formule) > 0.0001
+          ? `   ⚠ ${pts(formule)} — écart de FORMULE du classeur, voir scripts/verifier-classeur.ts`
+          : `   ✔ identique : les formules du classeur sont saines ce mois-ci`) +
+        `\n  Moteur sur la base (${libellePerimetre(perimetre).padEnd(10)})      ${pct(kA.tauxSalaries)}` +
+        `   ← l'écart restant est de DONNÉES, détaillé ci-dessous`
+    )
+  }
+
+  // Un taux est un rapport : dire « d'où vient l'écart » demande de séparer
+  // les gens staffables en trop (dénominateur) des jours staffés manquants
+  // (numérateur). Les deux effets ne s'additionnent pas exactement — le reste
+  // est le croisement des deux.
+  if (Math.abs(kA.tauxSalaries - kE.tauxSalaries) > 0.0001) {
+    const tauxDenom = aA.sta > 0 ? aE.stf / aA.sta : 0
+    const tauxNum = aE.sta > 0 ? aA.stf / aE.sta : 0
+    console.log(
+      `\n  Décomposition de l'écart :` +
+        `\n    dénominateur — ${ecartJ(aA.sta - aE.sta).trim()} staffables : à numérateur figé, le taux passerait à ${pct(tauxDenom)} (${pts(tauxDenom - aE.taux)})` +
+        `\n    numérateur   — ${ecartJ(aA.stf - aE.stf).trim()} staffés    : à dénominateur figé, le taux passerait à ${pct(tauxNum)} (${pts(tauxNum - aE.taux)})` +
+        `\n    Plus de staffables sans mission = des fiches ouvertes à tort ou des gens hors Paris ;` +
+        `\n    moins de staffés = des missions du classeur jamais saisies au registre de l'app.`
+    )
+  }
 
   // --- 2. Attribution de l'écart, consultant par consultant -----------------
   titre("2. D'OÙ VIENT L'ÉCART — par consultant")
@@ -167,7 +268,7 @@ async function main() {
         cote: CONSULTANTS_EXCLUS.some((x) => normNom(x) === cle)
           ? "Excel seul — correction assumée"
           : !aE.parPersonne.has(cle)
-            ? "app seule"
+            ? `app seule · ${agenceDe(a.nom || e.nom)}`
             : !aA.parPersonne.has(cle)
               ? "Excel seul"
               : "",
@@ -204,8 +305,24 @@ async function main() {
   const parNomA = new Map(app.people.map((p) => [normNom(p.name), p]))
   const seulApp = [...parNomA.values()].filter((p) => !parNomE.has(normNom(p.name)))
   const seulExcel = [...parNomE.values()].filter((p) => !parNomA.has(normNom(p.name)))
-  console.log(`  Seulement dans l'app (${seulApp.length}) — arrivés par la synchro Boond ou saisis dans l'app :`)
-  for (const p of seulApp) console.log(`    ${p.name} · ${p.grade} · arrivée ${fr(p.arrival)} · départ ${fr(p.departure)}`)
+  console.log(
+    `  Seulement dans l'app (${seulApp.length}) — arrivés par la synchro Boond ou saisis dans l'app :`
+  )
+  for (const p of seulApp)
+    console.log(
+      `    ${p.name} · ${p.grade} · arrivée ${fr(p.arrival)} · départ ${fr(p.departure)}` +
+        ` · ${agenceDe(p.name)}` +
+        (p.grade !== GRADE_ROOKIE && p.grade !== GRADE_INDEP && !p.departure
+          ? `   ← pèse au DÉNOMINATEUR du taux ${libellePerimetre(perimetre)}`
+          : "")
+    )
+  const sansAgence = seulApp.filter((p) => !agenceRenseignee(agences.get(normNom(p.name))))
+  if (sansAgence.length && perimetre === Perimetre.PARIS) {
+    console.log(
+      `    ⚠ ${sansAgence.length} de ces personnes n'ont PAS d'agence : la règle s5 les compte` +
+        `\n      dans PARIS. Si elles sont bordelaises, renseigner leur agence les sort du taux parisien.`
+    )
+  }
   const exclus = new Set(CONSULTANTS_EXCLUS.map(normNom))
   console.log(`  Seulement dans l'Excel (${seulExcel.length}) :`)
   for (const p of seulExcel)
@@ -263,7 +380,8 @@ async function main() {
 
   titre("EN RÉSUMÉ")
   console.log(
-    `  Excel ${pct(kE.tauxSalaries)} · app ${pct(kA.tauxSalaries)} · écart ${pts(kA.tauxSalaries - kE.tauxSalaries)}\n` +
+    `  ${MOIS_LONGS[month - 1]} ${year} · périmètre ${libellePerimetre(perimetre)}\n` +
+      `  Excel ${pct(kE.tauxSalaries)} · app ${pct(kA.tauxSalaries)} · écart ${pts(kA.tauxSalaries - kE.tauxSalaries)}\n` +
       `  Corriger les lignes de la section 4 (et 3) dans le registre de l'app aligne les deux.`
   )
 }

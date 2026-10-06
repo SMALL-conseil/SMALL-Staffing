@@ -6,7 +6,14 @@ import { mkdtempSync, rmSync } from "fs"
 import { tmpdir } from "os"
 import path from "path"
 import * as XLSX from "xlsx"
-import { normNom, readRegistres, serialToDate, toEngineInputs, toIso } from "@/lib/excel-registres"
+import {
+  normNom,
+  readKpiStaffing,
+  readRegistres,
+  serialToDate,
+  toEngineInputs,
+  toIso,
+} from "@/lib/excel-registres"
 
 /** « YYYY-MM-DD » → sérial Excel (base 30/12/1899). */
 const serial = (iso: string): number => {
@@ -145,5 +152,56 @@ describe("toEngineInputs", () => {
     expect(people.map((p) => p.name)).toEqual(["Alice MARTIN"])
     expect(missions).toHaveLength(1)
     expect(missions[0].client).toBe("GROUPAMA")
+  })
+})
+
+describe("readKpiStaffing — les cellules que le classeur calcule lui-même", () => {
+  /** Onglet « Staffing » synthétique : en-tête = 1er du mois, puis les sept
+   *  lignes dans l'ordre du classeur. */
+  function avecStaffing(mois: Date[], colonnes: (number | null)[][]): string {
+    const wb = XLSX.utils.book_new()
+    const aoa: unknown[][] = [["", ...mois], ...colonnes.map((l) => ["", ...l])]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Staffing")
+    const f = path.join(dir, `kpi-${Math.random().toString(36).slice(2)}.xlsx`)
+    XLSX.writeFile(wb, f)
+    return f
+  }
+
+  const f = avecStaffing(
+    [new Date(Date.UTC(2026, 9, 1)), new Date(Date.UTC(2026, 10, 1)), new Date(Date.UTC(2027, 0, 1))],
+    [
+      [22, 20, 21], // jours ouvrés
+      [33.2727, 34, 34], // effectif salariés
+      [0.8415, 0.81, 0.8], // taux salariés
+      [34.2727, 35, 35], // effectif + indép
+      [616, null, null], // facturés
+      [116, null, null], // intercontrat
+      [0.8286, null, null], // taux + indép
+    ]
+  )
+
+  it("repère les colonnes par la date d'en-tête et ne rend que l'année demandée", () => {
+    const kpi = readKpiStaffing(f, 2026)
+    expect(kpi.map((k) => k.mois)).toEqual([10, 11])
+    expect(kpi[0].joursOuvres).toBe(22)
+    expect(kpi[0].effectifSalaries).toBeCloseTo(33.2727, 4)
+    expect(kpi[0].tauxSalaries).toBeCloseTo(0.8415, 4)
+    expect(kpi[0].factures).toBe(616)
+    expect(kpi[0].tauxAvecIndep).toBeCloseTo(0.8286, 4)
+  })
+
+  it("une cellule vide revient à null (les mois futurs du classeur le sont)", () => {
+    const kpi = readKpiStaffing(f, 2026)
+    expect(kpi[1].factures).toBeNull()
+    expect(kpi[1].tauxAvecIndep).toBeNull()
+  })
+
+  it("année absente → aucune colonne (au script de le dire à l'utilisateur)", () => {
+    expect(readKpiStaffing(f, 2025)).toEqual([])
+  })
+
+  it("onglet « Staffing » manquant → erreur explicite", () => {
+    const vide = classeur({})
+    expect(() => readKpiStaffing(vide, 2026)).toThrow(/Staffing/)
   })
 })

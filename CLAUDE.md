@@ -625,3 +625,21 @@ remis à l'identique — un taux est un rapport, les effets ne s'additionnent pa
 et liste les différences de registre : c'est la liste des corrections à faire.
 **Recoller = corriger le registre de l'app, jamais ré-importer** (`--replace`
 efface honoraires, boondId et TJM fiche ; l'app est la source vivante).
+
+**Périmètre obligatoire (a41)** : le classeur « Staffing SMALL Paris » ne
+contient QUE Paris. Comparer la base ENTIÈRE à ce classeur fabrique un écart de
+toutes pièces (tout Bordeaux tombe côté « app seule »). Le comparateur prend
+donc `--perimetre PARIS|BORDEAUX|TOUT`, **PARIS par défaut** :
+
+```
+npx tsx scripts/compare-excel.ts "<xlsx>" 2026-10 --perimetre PARIS
+```
+
+Il affiche TROIS nombres et non deux — la **cellule** du classeur, le **moteur
+sur les registres du classeur**, le **moteur sur la base** : entre les deux
+premiers l'écart serait une FORMULE (cf. `verifier-classeur.ts`), entre les deux
+derniers des DONNÉES. Puis il décompose l'écart en dénominateur (staffables en
+trop : fiches ouvertes à tort, gens hors Paris) et numérateur (staffés
+manquants : missions du classeur jamais saisies), et nomme l'agence des
+personnes présentes côté app seul — **une agence vide compte dans PARIS**
+(décision s5), premier suspect d'un taux parisien dilué.

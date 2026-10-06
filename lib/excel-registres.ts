@@ -17,6 +17,58 @@ import type { StaffMission, StaffPerson } from "./staffing"
  *  toujours été siège, ils faussaient le taux. */
 export const CONSULTANTS_EXCLUS = ["Elvire HOUDEVILLE"]
 
+/** Les KPI que le classeur CALCULE lui-même, lus dans l'onglet « Staffing »
+ *  (une colonne par mois). Ce sont les cellules que Sacha lit à l'écran : les
+ *  confronter au moteur distingue un écart de FORMULE (a40) d'un écart de
+ *  DONNÉES (a21/a41). */
+export interface KpiClasseur {
+  mois: number
+  joursOuvres: number | null
+  effectifSalaries: number | null
+  tauxSalaries: number | null
+  effectifAvecIndep: number | null
+  factures: number | null
+  intercontrat: number | null
+  tauxAvecIndep: number | null
+}
+
+/**
+ * Lit les cellules calculées de l'onglet « Staffing » pour une année.
+ * Les colonnes sont repérées par la DATE portée en en-tête (1er du mois) et
+ * les lignes par leur rang, tel que le classeur les empile depuis l'origine :
+ * 1 jours ouvrés, 2 effectif salariés, 3 taux salariés, 4 effectif + indép,
+ * 5 facturés, 6 intercontrat, 7 taux + indép.
+ * Lecture seule, et tolérante : une cellule non numérique revient à `null`
+ * plutôt que de faire échouer la lecture (le classeur vit, ses mois futurs
+ * sont parfois vides).
+ */
+export function readKpiStaffing(path: string, year: number): KpiClasseur[] {
+  const wb = XLSX.read(readFileSync(path), { type: "buffer", cellDates: true })
+  const ws = wb.Sheets["Staffing"]
+  if (!ws) throw new Error(`onglet « Staffing » introuvable dans ${path}`)
+  const lignes = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true })
+  const colonnes = new Map<number, number>()
+  for (const [i, v] of (lignes[0] ?? []).entries()) {
+    if (v instanceof Date && v.getFullYear() === year) colonnes.set(v.getMonth() + 1, i)
+  }
+  const nombre = (ligne: number, col: number): number | null => {
+    const v = (lignes[ligne] ?? [])[col]
+    return typeof v === "number" ? v : null
+  }
+  return [...colonnes.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([mois, col]) => ({
+      mois,
+      joursOuvres: nombre(1, col),
+      effectifSalaries: nombre(2, col),
+      tauxSalaries: nombre(3, col),
+      effectifAvecIndep: nombre(4, col),
+      factures: nombre(5, col),
+      intercontrat: nombre(6, col),
+      tauxAvecIndep: nombre(7, col),
+    }))
+}
+
 export interface ConsultantRow {
   name: string
   email: string | null

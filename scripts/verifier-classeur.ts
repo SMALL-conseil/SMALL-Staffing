@@ -23,10 +23,9 @@
 //  Lecture seule : le classeur n'est jamais modifié.
 // ============================================================
 import "dotenv/config"
-import { readFileSync, readdirSync, statSync } from "fs"
+import { readdirSync, statSync } from "fs"
 import { join } from "path"
-import * as XLSX from "xlsx"
-import { readRegistres, toEngineInputs, toIso } from "../lib/excel-registres"
+import { readKpiStaffing, readRegistres, toEngineInputs, toIso } from "../lib/excel-registres"
 import { monthlyKpis, staffableDays, staffedDays } from "../lib/staffing"
 import { MOIS_LONGS, todayParis } from "../lib/staffing-ui"
 import { GRADE_INDEP } from "../lib/types"
@@ -53,51 +52,15 @@ function resoudreClasseur(chemin: string): string {
   return join(chemin, candidats[0].f)
 }
 
-/** Les KPI calculés PAR LE CLASSEUR, lus dans l'onglet « Staffing ». */
-interface KpiClasseur {
-  mois: number
-  joursOuvres: number | null
-  effectifSalaries: number | null
-  tauxSalaries: number | null
-  effectifAvecIndep: number | null
-  factures: number | null
-  intercontrat: number | null
-  tauxAvecIndep: number | null
-}
-
-function lireKpiClasseur(path: string, year: number): KpiClasseur[] {
-  const wb = XLSX.read(readFileSync(path), { type: "buffer", cellDates: true })
-  const ws = wb.Sheets["Staffing"]
-  if (!ws) throw new ErreurUtilisateur(`onglet « Staffing » introuvable dans ${path}`)
-  const lignes = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true })
-  const entete = lignes[0] ?? []
-  // Colonnes des mois : l'en-tête porte le 1er de chaque mois de l'année visée.
-  const colonnes = new Map<number, number>()
-  entete.forEach((v, i) => {
-    const d = v instanceof Date ? v : null
-    if (d && d.getFullYear() === year) colonnes.set(d.getMonth() + 1, i)
-  })
-  if (!colonnes.size) {
+/** Les KPI calculés PAR LE CLASSEUR : lecture partagée (lib/excel-registres). */
+function lireKpiClasseur(path: string, year: number) {
+  const kpi = readKpiStaffing(path, year)
+  if (!kpi.length) {
     throw new ErreurUtilisateur(
       `Aucune colonne de ${year} dans l'onglet « Staffing » (le classeur couvre une autre année ?)`
     )
   }
-  const nombre = (ligne: number, col: number): number | null => {
-    const v = (lignes[ligne] ?? [])[col]
-    return typeof v === "number" ? v : null
-  }
-  return [...colonnes.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([mois, col]) => ({
-      mois,
-      joursOuvres: nombre(1, col),
-      effectifSalaries: nombre(2, col),
-      tauxSalaries: nombre(3, col),
-      effectifAvecIndep: nombre(4, col),
-      factures: nombre(5, col),
-      intercontrat: nombre(6, col),
-      tauxAvecIndep: nombre(7, col),
-    }))
+  return kpi
 }
 
 async function main() {
