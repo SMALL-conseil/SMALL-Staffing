@@ -644,37 +644,43 @@ manquants : missions du classeur jamais saisies), et nomme l'agence des
 personnes présentes côté app seul — **une agence vide compte dans PARIS**
 (décision s5), premier suspect d'un taux parisien dilué.
 
-**Diagnostic posé sur octobre 2026 (06/10)** : 2,35 pt d'écart (84,15 % contre
-81,81 %), numérateur IDENTIQUE des deux côtés (616 j), donc 21 j staffables en
-trop, portés par deux lignes seulement : Danny Gaurat (fenêtre 12/10 → 12/11 au
-classeur, absente de l'app, 15 j) et Julie Bichon (début 09/10 au classeur,
-18/10 dans l'app, 6 j).
+**Diagnostic posé sur octobre 2026, clos le 06/10** : 2,35 pt d'écart (84,15 %
+contre 81,81 %), numérateur IDENTIQUE des deux côtés (616 j), donc 21 j
+staffables en trop — **deux absences prolongées, et rien d'autre** :
 
-### ⚠️ Les colonnes « Absence » du classeur garent aussi des INTERCONTRATS
+- **Danny Gaurat** 12/10 → 12/11 (absence d'un mois, confirmée par Sacha),
+  jamais saisie dans l'app : 15 j ;
+- **Julie Bichon** début 09/10 au classeur, 18/10 dans l'app : 6 j.
 
-**Le piège le plus coûteux du dispositif, et il flatte le taux.** Vérification
-faite auprès de Sacha le 06/10/2026 : **Danny Gaurat n'est pas absent, il est en
-intercontrat depuis longtemps** — sa fenêtre au classeur est un parking. Or les
-deux notions jouent en sens INVERSE :
+Les deux saisies, le dénominateur parisien revient à 732 j et l'app affiche
+616/732 = **84,15 %**, soit la valeur que le classeur calcule sur ses propres
+registres. **Écart de données résiduel : zéro.** Le seul écart qui subsiste
+alors est entre ce que le classeur CALCULE et ce qu'il AFFICHE (cellule à
+80,36 % le 06/10) : c'est le bug de `COUNTA` ci-dessus, −3,80 pt, **côté
+classeur**.
+
+### ⚠️ Une fenêtre « Absence » au classeur peut aussi cacher un intercontrat
+
+Vigilance acquise au passage (06/10/2026) : avant de recopier une fenêtre
+d'absence, il faut savoir ce qu'elle décrit, parce que les deux notions jouent
+en sens INVERSE sur le taux :
 
 - une **absence** sort la personne du dénominateur → le taux **monte** ;
-- un **intercontrat** la laisse dans le dénominateur sans numérateur → le taux
+- un **intercontrat** la laisse au dénominateur sans numérateur → le taux
   **baisse**, et c'est précisément ce que le KPI doit montrer.
 
-Conséquences, à retenir avant de « recoller » quoi que ce soit :
-
-1. **la golden source est fausse sur ce point** : les 84,15 % d'octobre sont
-   flattés par les 15 jours de Danny. Le vrai taux Paris d'octobre est celui de
-   l'app — 81,81 %, ou **82,46 %** une fois la seule absence réelle (Julie)
-   corrigée. Le classeur, lui, est à corriger côté classeur ;
-2. **aucune absence ne s'applique en bloc** depuis le classeur (cf. a43 plus
-   bas) : rien dans le fichier ne distingue les deux cas, seul un humain sait ;
-3. l'app, elle, ne confond pas : un intercontrat est un trou dans la carte de
-   staffing, une absence est une fenêtre dans `LongAbsence`.
+Rien dans le classeur ne distingue les deux : **seul un humain sait**. D'où la
+règle a43 — aucune absence ne s'applique en bloc, chaque fenêtre se confirme
+nommément. Sur octobre 2026 la réponse a été « ce sont deux vraies absences »,
+et le classeur avait raison ; la question valait quand même d'être posée, elle
+coûte une ligne de commande et protège le KPI d'un alignement à l'aveugle.
+Côté app, aucune confusion possible : un intercontrat est un trou dans la carte
+de staffing, une absence est une fenêtre dans `LongAbsence`.
 
 Les absences prolongées restent le POINT DE DÉRIVE du dispositif : Boond ne les
 porte pas, elles se saisissent deux fois à la main (colonnes du classeur +
-`/admin/personnes`), et rien ne rapproche les deux saisies.
+`/admin/personnes`), et rien ne rapproche les deux saisies — c'est de là que
+venaient les 21 jours.
 
 `npx tsx scripts/cra-personne.ts "<nom|email>" [AAAA-MM|AAAA]` (a43) lit le CRA
 Boond jour par jour : fiche, pointages, puis les SÉRIES de jours ouvrés sans

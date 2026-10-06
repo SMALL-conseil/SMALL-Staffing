@@ -9,11 +9,12 @@
 //  n'est touché, et seules les catégories demandées sont appliquées.
 //
 //  Qui a raison (règle décidée le 06/10/2026, détaillée dans lib/recollement.ts) :
-//   · ABSENCES PROLONGÉES → PERSONNE, tant qu'un humain n'a pas tranché. Le
-//     classeur gare aussi des INTERCONTRATS dans ces colonnes (cas Danny
-//     Gaurat) : une absence sort la personne du dénominateur et FLATTE le
-//     taux, un intercontrat l'y laisse et le pénalise. Chaque fenêtre se
-//     confirme nommément : --absence "Julie BICHON".
+//   · ABSENCES PROLONGÉES → PERSONNE, tant qu'un humain n'a pas tranché. Une
+//     fenêtre du classeur peut décrire une vraie absence ou cacher un
+//     INTERCONTRAT : une absence sort la personne du dénominateur et fait
+//     monter le taux, un intercontrat l'y laisse et le fait baisser. Rien dans
+//     le fichier ne les distingue — chaque fenêtre se confirme nommément :
+//     --absence "Julie BICHON".
 //   · GRADE / ARRIVÉE / DÉPART → l'app (synchro Boond). Jamais écrasés par
 //     l'Excel : seulement signalés comme « classeur en retard ».
 //   · Fiche ou mission MANQUANTE → créée ; mission du même client aux dates
@@ -116,11 +117,11 @@ async function main() {
   if (args.includes("--absences")) {
     throw new ErreurUtilisateur(
       `--absences n'existe plus (06/10/2026).\n` +
-        `  Le classeur gare aussi des INTERCONTRATS dans ses colonnes « Absence » (cas\n` +
-        `  Danny Gaurat) : une absence sort la personne du dénominateur et FLATTE le taux,\n` +
-        `  un intercontrat l'y laisse et le pénalise. Les appliquer en bloc alignerait\n` +
-        `  l'app sur un chiffre faux.\n` +
-        `  Chaque absence se confirme nommément : --absence "Julie BICHON"`
+        `  Une fenêtre « Absence » du classeur peut décrire une vraie absence ou cacher un\n` +
+        `  INTERCONTRAT, et les deux jouent en sens inverse : une absence sort la personne du\n` +
+        `  dénominateur et fait MONTER le taux, un intercontrat l'y laisse et le fait baisser.\n` +
+        `  Rien dans le fichier ne les distingue — seul un humain sait.\n` +
+        `  Chaque absence se confirme donc nommément : --absence "Julie BICHON"`
     )
   }
   const chemin = resoudreClasseur(cible)
@@ -244,10 +245,11 @@ async function main() {
   if (plan.absencesAConfirmer.length) {
     titre(`ABSENCES — ${plan.absencesAConfirmer.length} proposition(s) à confirmer`)
     console.log(
-      `  Le classeur gare aussi des INTERCONTRATS dans ses colonnes « Absence » (cas Danny\n` +
-        `  Gaurat, 06/10/2026). Or les deux jouent en sens INVERSE : une absence SORT la\n` +
-        `  personne du dénominateur et fait MONTER le taux ; un intercontrat l'y laisse et le\n` +
-        `  fait baisser — c'est tout l'intérêt du KPI. D'où la confirmation, une par une.\n`
+      `  Une fenêtre « Absence » du classeur peut décrire une vraie absence ou cacher un\n` +
+        `  INTERCONTRAT, et les deux jouent en sens INVERSE : une absence SORT la personne du\n` +
+        `  dénominateur et fait MONTER le taux ; un intercontrat l'y laisse et le fait baisser\n` +
+        `  — c'est tout l'intérêt du KPI. Rien dans le fichier ne les distingue : d'où la\n` +
+        `  confirmation, une par une.\n`
     )
     let sta = 0
     let stf = 0

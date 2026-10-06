@@ -12,16 +12,16 @@
 //
 //  QUI A RAISON — la règle de départage, décidée le 06/10/2026 :
 //   · ABSENCES PROLONGÉES → PERSONNE, tant qu'un humain n'a pas tranché.
-//     Corrigé le 06/10 au soir : les colonnes « Absence » du classeur servent
-//     AUSSI de parking pour un consultant simplement en INTERCONTRAT (cas
-//     Danny Gaurat, 12/10 → 12/11 : aucune absence, un intercontrat qui
-//     dure). Or les deux sont l'inverse l'un de l'autre pour le taux — une
-//     absence SORT la personne du dénominateur et FLATTE le taux, un
-//     intercontrat l'y laisse et le pénalise, ce qui est tout l'intérêt du
-//     KPI. Appliquer le classeur en bloc alignerait donc l'app sur un chiffre
-//     faux. Chaque divergence d'absence est une PROPOSITION, appliquée
+//     Une fenêtre « Absence » au classeur peut décrire une vraie absence ou
+//     cacher un consultant simplement en INTERCONTRAT, et les deux sont
+//     l'inverse l'un de l'autre pour le taux : une absence SORT la personne du
+//     dénominateur et le fait MONTER, un intercontrat l'y laisse et le fait
+//     baisser — ce qui est tout l'intérêt du KPI. Rien dans le fichier ne les
+//     distingue. Chaque divergence est donc une PROPOSITION, appliquée
 //     nommément (`absencesConfirmees`) et jamais autrement. Une SUPPRESSION
 //     n'est jamais une action, même confirmée : elle est signalée.
+//     (Octobre 2026 : les deux fenêtres étaient de vraies absences, le
+//     classeur avait raison — la question valait d'être posée quand même.)
 //   · GRADE, ARRIVÉE, DÉPART → l'APP. Ils viennent de Boond (synchro
 //     quotidienne) ; le classeur est en retard par construction. Jamais
 //     écrasés depuis l'Excel, seulement signalés.

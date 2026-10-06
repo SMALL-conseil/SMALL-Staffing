@@ -56,10 +56,10 @@ const fiche = (p: Partial<FicheApp> = {}): FicheApp => ({
 const types = (actions: Action[]) => actions.map((a) => a.type)
 
 describe("absences — une proposition, jamais une évidence", () => {
-  // Cas Danny Gaurat (06/10/2026) : le classeur porte « absence 12/10 → 12/11 »
-  // alors qu'il n'est pas absent — il est en INTERCONTRAT depuis longtemps,
-  // garé dans ces colonnes. Appliquer le classeur le sortirait du
-  // dénominateur et FLATTERAIT le taux. Donc : rien, sans confirmation.
+  // Une fenêtre du classeur peut décrire une vraie absence ou cacher un
+  // intercontrat : l'une sort la personne du dénominateur et fait MONTER le
+  // taux, l'autre l'y laisse et le fait baisser. Rien dans le fichier ne les
+  // distingue — donc rien ne s'écrit sans confirmation nommée.
   it("absence au classeur inconnue de l'app → proposition, AUCUNE action", () => {
     const { actions, absencesAConfirmer } = plan(
       { consultants: [consultant({ absence: { start: "2026-10-12", end: "2026-11-12" } })] },
@@ -422,7 +422,7 @@ describe("cas composé — les cinq corrections du 06/10/2026 en un seul plan", 
   it("rejouer le plan après application ne propose plus rien (idempotence)", () => {
     const apres = {
       fiches: [
-        // Danny : volontairement SANS absence — la sienne n'en est pas une.
+        // Danny : volontairement SANS absence — personne ne l'a confirmée.
         fiche({ id: "f1", nom: "Danny GAURAT" }),
         fiche({
           id: "f2",
@@ -455,11 +455,12 @@ describe("cas composé — les cinq corrections du 06/10/2026 en un seul plan", 
     })
     expect(actions).toHaveLength(0)
     expect(signalements).toHaveLength(0)
-    // Danny reste une proposition tant que personne ne tranche — et c'est
-    // heureux : son « absence » au classeur n'en est pas une.
+    // Danny reste une proposition tant que personne ne l'a confirmé : c'est le
+    // contrat du plan, pas un jugement sur sa fenêtre.
     expect(absencesAConfirmer.map((p) => p.nom)).toEqual(["Danny GAURAT"])
   })
 })
+
 
 describe("appariement des missions — l'ordre du classeur ne décide pas", () => {
   it("une ligne qui chevauche deux missions ne vole pas celle d'une autre ligne identique", () => {
