@@ -31,7 +31,9 @@ import type { StaffMission, StaffPerson } from "../lib/staffing"
 import { GRADE_INDEP, GRADE_ROOKIE, Perimetre } from "../lib/types"
 import { agenceRenseignee, libellePerimetre } from "../lib/perimetre"
 import {
+  ALIAS_CLASSEUR,
   CONSULTANTS_EXCLUS,
+  cleNom,
   normNom,
   readKpiStaffing,
   readRegistres,
@@ -63,7 +65,7 @@ function agregats(c: Cote, year: number, month: number) {
     const compteStf = p.grade !== GRADE_INDEP
     if (compteSta) sta += s
     if (compteStf) stf += f
-    if (s > 0 || f > 0) parPersonne.set(normNom(p.name), { nom: p.name, grade: p.grade, sta: compteSta ? s : 0, stf: compteStf ? f : 0 })
+    if (s > 0 || f > 0) parPersonne.set(cleNom(p.name), { nom: p.name, grade: p.grade, sta: compteSta ? s : 0, stf: compteStf ? f : 0 })
   }
   return { sta, stf, taux: sta > 0 ? stf / sta : 0, parPersonne }
 }
@@ -177,7 +179,7 @@ async function main() {
     )
   )
   const agenceDe = (nom: string) => {
-    const a = agences.get(normNom(nom))
+    const a = agences.get(cleNom(nom))
     return agenceRenseignee(a) ? (a as string) : "agence vide → PARIS"
   }
 
@@ -191,6 +193,13 @@ async function main() {
   console.log(`           modifié le ${statSync(chemin).mtime.toLocaleString("fr-FR")}`)
   console.log(`Registres : Excel ${reg.consultants.length} consultants / ${reg.missions.length} missions`)
   console.log(`            app   ${app.people.length} consultants / ${app.missions.length} missions`)
+  const alias = Object.entries(ALIAS_CLASSEUR)
+  if (alias.length) {
+    console.log(
+      `Alias   : ${alias.map(([a, b]) => `${a} → ${b}`).join(" · ")}` +
+        `   (changements de nom, cf. lib/excel-registres.ts)`
+    )
+  }
   console.log(
     `Périmètre : ${perimetre}` +
       (perimetre === Perimetre.PARIS
@@ -301,10 +310,10 @@ async function main() {
 
   // --- 3. Registre des consultants -----------------------------------------
   titre("3. REGISTRE DES CONSULTANTS")
-  const parNomE = new Map(excel.people.map((p) => [normNom(p.name), p]))
-  const parNomA = new Map(app.people.map((p) => [normNom(p.name), p]))
-  const seulApp = [...parNomA.values()].filter((p) => !parNomE.has(normNom(p.name)))
-  const seulExcel = [...parNomE.values()].filter((p) => !parNomA.has(normNom(p.name)))
+  const parNomE = new Map(excel.people.map((p) => [cleNom(p.name), p]))
+  const parNomA = new Map(app.people.map((p) => [cleNom(p.name), p]))
+  const seulApp = [...parNomA.values()].filter((p) => !parNomE.has(cleNom(p.name)))
+  const seulExcel = [...parNomE.values()].filter((p) => !parNomA.has(cleNom(p.name)))
   console.log(
     `  Seulement dans l'app (${seulApp.length}) — arrivés par la synchro Boond ou saisis dans l'app :`
   )
@@ -316,7 +325,7 @@ async function main() {
           ? `   ← pèse au DÉNOMINATEUR du taux ${libellePerimetre(perimetre)}`
           : "")
     )
-  const sansAgence = seulApp.filter((p) => !agenceRenseignee(agences.get(normNom(p.name))))
+  const sansAgence = seulApp.filter((p) => !agenceRenseignee(agences.get(cleNom(p.name))))
   if (sansAgence.length && perimetre === Perimetre.PARIS) {
     console.log(
       `    ⚠ ${sansAgence.length} de ces personnes n'ont PAS d'agence : la règle s5 les compte` +
@@ -357,12 +366,12 @@ async function main() {
 
   const mE = new Map<string, { m: StaffMission; nom: string }>()
   for (const m of excel.missions.filter(chevauche)) {
-    const nom = normNom(nomDe(excel, m.personId))
+    const nom = cleNom(nomDe(excel, m.personId))
     mE.set(cleM(m, nom), { m, nom: nomDe(excel, m.personId) })
   }
   const mA = new Map<string, { m: StaffMission; nom: string }>()
   for (const m of app.missions.filter(chevauche)) {
-    const nom = normNom(nomDe(app, m.personId))
+    const nom = cleNom(nomDe(app, m.personId))
     mA.set(cleM(m, nom), { m, nom: nomDe(app, m.personId) })
   }
   const ligneM = (x: { m: StaffMission; nom: string }) =>

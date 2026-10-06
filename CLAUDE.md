@@ -643,3 +643,41 @@ trop : fiches ouvertes à tort, gens hors Paris) et numérateur (staffés
 manquants : missions du classeur jamais saisies), et nomme l'agence des
 personnes présentes côté app seul — **une agence vide compte dans PARIS**
 (décision s5), premier suspect d'un taux parisien dilué.
+
+**Diagnostic posé sur octobre 2026 (06/10)** : 2,35 pt d'écart (84,15 % contre
+81,81 %), numérateur IDENTIQUE des deux côtés (616 j), donc 21 j staffables en
+trop — deux absences prolongées, et rien d'autre : Danny Gaurat (12/10 → 12/11,
+jamais saisie dans l'app, 15 j) et Julie Bichon (début 09/10 au classeur, 18/10
+dans l'app, 6 j). Les absences prolongées sont le POINT DE DÉRIVE du dispositif :
+Boond ne les porte pas, elles se saisissent deux fois à la main.
+
+### Changements de nom et recollement (a42)
+
+`ALIAS_CLASSEUR` (`lib/excel-registres.ts`) rapproche « nom au classeur » et
+« nom dans l'app » : la synchro Boond pose le nom d'usage, le classeur garde
+l'ancien, et sans cette table la même personne compte DEUX FOIS (+22 j d'un
+côté, −22 j de l'autre — cas Thessa LOPES → Thessa Franco, confirmé le
+06/10/2026). `cleNom()` est la clé de rapprochement, `nomCanonique()` le nom
+retenu à l'affichage. **Jamais de rapprochement deviné** : deux noms ne se
+confondent pas parce qu'ils se ressemblent — un alias s'ajoute à la main.
+
+`npx tsx scripts/recoller.ts "<xlsx>" [AAAA-MM] [--perimetre PARIS] [--absences]
+[--agences] [--personnes] [--missions] [--tout] [--appliquer]` applique les
+corrections que `compare-excel.ts` se contente de nommer. Plan pur et testé dans
+`lib/recollement.ts`. **Rien n'est écrit sans `--appliquer`**, et seules les
+catégories demandées le sont. Qui a raison (décidé le 06/10/2026) :
+
+- **absences prolongées → le CLASSEUR** (seul endroit où elles vivent) : ajout
+  et correction sont appliqués ; une absence connue de l'app seule est
+  **signalée, jamais supprimée** ;
+- **grade / arrivée / départ → l'APP** (Boond fait foi) : seulement signalés
+  comme « classeur en retard » ;
+- fiche ou mission manquante → créée (agence = périmètre recollé) ; mission du
+  même client aux dates différentes → **ajustée, jamais dupliquée** (appariement
+  en deux passes : les identiques d'abord, puis le meilleur recouvrement) ;
+- personne au classeur du périmètre mais **fiche en cours ailleurs** → signalée,
+  jamais dupliquée (l'unicité partielle s7 la refuserait de toute façon) ;
+- jamais touchés : honoraires, TJM de fiche, boondId, et le **rang** de saisie.
+
+Idempotent : rejoué après application, le plan est vide. Chaque écriture est
+indépendante — un refus n'annule pas les autres.

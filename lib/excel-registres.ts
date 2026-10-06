@@ -17,6 +17,36 @@ import type { StaffMission, StaffPerson } from "./staffing"
  *  toujours été siège, ils faussaient le taux. */
 export const CONSULTANTS_EXCLUS = ["Elvire HOUDEVILLE"]
 
+/**
+ * CHANGEMENTS DE NOM — « nom au classeur » → « nom dans l'app » (a42).
+ * Le registre de l'app reçoit le nom d'usage par la synchro Boond ; le
+ * classeur, saisi à la main, garde parfois l'ancien. Sans ce rapprochement la
+ * même personne compte DEUX FOIS dans une comparaison : +22 j staffables d'un
+ * côté, −22 j de l'autre, et l'écart semble venir de nulle part.
+ * Rapprochement confirmé à la main par Sacha, jamais deviné : deux noms ne se
+ * confondent pas parce qu'ils se ressemblent.
+ */
+export const ALIAS_CLASSEUR: Record<string, string> = {
+  "Thessa LOPES": "Thessa Franco", // confirmé le 06/10/2026
+}
+
+/** Clé de rapprochement d'un nom, alias du classeur résolus. */
+export function cleNom(nom: string): string {
+  const direct = normNom(nom)
+  for (const [ancien, actuel] of Object.entries(ALIAS_CLASSEUR)) {
+    if (normNom(ancien) === direct) return normNom(actuel)
+  }
+  return direct
+}
+
+/** Nom tel que l'app le porte (le classeur peut être en retard). */
+export function nomCanonique(nom: string): string {
+  for (const [ancien, actuel] of Object.entries(ALIAS_CLASSEUR)) {
+    if (normNom(ancien) === normNom(nom)) return actuel
+  }
+  return nom
+}
+
 /** Les KPI que le classeur CALCULE lui-même, lus dans l'onglet « Staffing »
  *  (une colonne par mois). Ce sont les cellules que Sacha lit à l'écran : les
  *  confronter au moteur distingue un écart de FORMULE (a40) d'un écart de
@@ -212,8 +242,10 @@ export function toEngineInputs(
   const people: StaffPerson[] = reg.consultants
     .filter((c) => !exclus.has(normNom(c.name)))
     .map((c) => ({
-      id: normNom(c.name),
-      name: c.name,
+      // Alias résolus (a42) : le classeur peut porter l'ancien nom — c'est la
+      // MÊME personne, elle ne doit pas compter deux fois.
+      id: cleNom(c.name),
+      name: nomCanonique(c.name),
       grade: c.grade,
       arrival: toIso(c.arrival),
       departure: c.departure ? toIso(c.departure) : null,
@@ -223,9 +255,9 @@ export function toEngineInputs(
     }))
   const connus = new Set(people.map((p) => p.id))
   const missions: StaffMission[] = reg.missions
-    .filter((m) => connus.has(normNom(m.consultant)))
+    .filter((m) => connus.has(cleNom(m.consultant)))
     .map((m) => ({
-      personId: normNom(m.consultant),
+      personId: cleNom(m.consultant),
       client: m.client,
       start: toIso(m.start),
       end: toIso(m.end),
